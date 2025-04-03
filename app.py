@@ -1,14 +1,11 @@
-# import streamlit as st
-# import pandas as pd
-# from pymongo import MongoClient
+import streamlit as st
+import pandas as pd
+from pymongo import MongoClient
 
 # # Connect to MongoDB (update with your connection details)
 # client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')  # Replace with your connection string
 # db = client['steam_db']
 # collection = db['games']
-
-import streamlit as st
-from pymongo import MongoClient
 
 # Connect to MongoDB (replace with your connection string)
 client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
@@ -20,11 +17,13 @@ data = list(collection.find({}, {'_id': 1, 'Title': 1, 'Original Price': 1, 'Dis
 1, 'Publisher': 1, 'Supported Languages': 1, 'Popular Tags': 1, 'Game Features': 1, 'Minimum Requirements': 1}))
 
 # Streamlit app code
-st.title('Forza Horizon 5 Showcase')
+st.title('Video Game Showcase')
 
 for item in data:
     st.header(item['Title'])
-    st.image("https://store.steampowered.com/app/1551360/Forza_Horizon_5//header.jpg", width=200)  # Placeholder for actual image link
+    # Placeholder for actual image link (you can add a function to fetch images dynamically)
+    placeholder_image = "https://via.placeholder.com/200"  # Replace with actual image fetching logic
+    st.image(placeholder_image, width=200)
     st.write(f"Original Price: {item['Original Price']}")
     st.write(f"Discounted Price: {item['Discounted Price']}")
     st.write(f"Release Date: {item['Release Date']}")
@@ -41,7 +40,7 @@ for item in data:
     # Add like button and logging mechanism if needed
     if st.button('Like'):
         st.write("Thank you for your like!")
-
+        
 # # Load data from MongoDB into DataFrame
 # def load_data():
 #     cursor = collection.find()
