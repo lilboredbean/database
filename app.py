@@ -1,11 +1,11 @@
-import streamlit as st
-import pandas as pd
-from pymongo import MongoClient
+# import streamlit as st
+# import pandas as pd
+# from pymongo import MongoClient
 
-# Connect to MongoDB (update with your connection details)
-client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')  # Replace with your connection string
-db = client['steam_db']
-collection = db['games']
+# # Connect to MongoDB (update with your connection details)
+# client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')  # Replace with your connection string
+# db = client['steam_db']
+# collection = db['games']
 
 import streamlit as st
 from pymongo import MongoClient
