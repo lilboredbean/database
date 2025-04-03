@@ -7,23 +7,58 @@ client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWr
 db = client['steam_db']
 collection = db['games']
 
-# Load data from MongoDB into DataFrame
-def load_data():
-    cursor = collection.find()
-    df = pd.DataFrame(list(cursor))
-    return df
+import streamlit as st
+from pymongo import MongoClient
 
-df = load_data()
+# Connect to MongoDB (replace with your connection string)
+client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
+db = client['SteamGamesCloud']
+collection = db['gamesCloud']
 
-# # Check columns after loading data
-# st.write(f"Columns available in the DataFrame: {df.columns}")
+# Fetch data from MongoDB
+data = list(collection.find({}, {'_id': 1, 'Title': 1, 'Original Price': 1, 'Discounted Price': 1, 'Release Date': 1, 'Link': 1, 'Game Description': 1, 'Recent Reviews Summary': 1, 'All Reviews Summary': 1, 'Recent Reviews Number': 1, 'All Reviews Number': 1, 'Developer':
+1, 'Publisher': 1, 'Supported Languages': 1, 'Popular Tags': 1, 'Game Features': 1, 'Minimum Requirements': 1}))
 
-# Streamlit App UI
-st.title("Steam Games - Deals and Discounts")
+# Streamlit app code
+st.title('Forza Horizon 5 Showcase')
 
-# Display basic game stats
-st.write("### Game Listings")
-st.write(f"Total Games Available: {len(df)}")
+for item in data:
+    st.header(item['Title'])
+    st.image("https://store.steampowered.com/app/1551360/Forza_Horizon_5//header.jpg", width=200)  # Placeholder for actual image link
+    st.write(f"Original Price: {item['Original Price']}")
+    st.write(f"Discounted Price: {item['Discounted Price']}")
+    st.write(f"Release Date: {item['Release Date']}")
+    st.write(f"Description: {item['Game Description']}")
+    st.write(f"Recent Reviews: {item['Recent Reviews Summary']} ({item['Recent Reviews Number']})")
+    st.write(f"All Reviews: {item['All Reviews Summary']} ({item['All Reviews Number']})")
+    st.write(f"Developer: {item['Developer']}")
+    st.write(f"Publisher: {item['Publisher']}")
+    st.write(f"Supported Languages: {', '.join(item['Supported Languages'])}")
+    st.write(f"Popular Tags: {', '.join(item['Popular Tags'])}")
+    st.write(f"Game Features: {', '.join(item['Game Features'])}")
+    st.write(f"Minimum Requirements: {item['Minimum Requirements']}")
+
+    # Add like button and logging mechanism if needed
+    if st.button('Like'):
+        st.write("Thank you for your like!")
+
+# # Load data from MongoDB into DataFrame
+# def load_data():
+#     cursor = collection.find()
+#     df = pd.DataFrame(list(cursor))
+#     return df
+
+# df = load_data()
+
+# # # Check columns after loading data
+# # st.write(f"Columns available in the DataFrame: {df.columns}")
+
+# # Streamlit App UI
+# st.title("Steam Games - Deals and Discounts")
+
+# # Display basic game stats
+# st.write("### Game Listings")
+# st.write(f"Total Games Available: {len(df)}")
 
 # # Filters for User Selection
 # st.sidebar.header("Filter by:")
