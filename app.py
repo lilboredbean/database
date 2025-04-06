@@ -8,12 +8,8 @@ import json
 
 # MongoDB Atlas connection setup
 @st.cache_resource
-def get_mongo_client():
-    # MongoDB Atlas connection string
-    client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
-    return client
+client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
 
-client = get_mongo_client()
 db = client["SteamGamesCloud"]
 games_collection = db["gamesCloud"]
 users_collection = db["usersCloud"]
