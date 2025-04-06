@@ -1,138 +1,144 @@
-import streamlit as st
 import pandas as pd
-from pymongo import MongoClient
+import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+from io import StringIO
+import json
 
-# # Connect to MongoDB (update with your connection details)
-# client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')  # Replace with your connection string
-# db = client['steam_db']
-# collection = db['games']
+# MongoDB Atlas connection setup
+@st.cache_resource
+def get_mongo_client():
+    # MongoDB Atlas connection string
+    client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
+    return client
 
-# Connect to MongoDB (replace with your connection string)
-client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
-db = client['SteamGamesCloud']
-collection = db['gamesCloud']
+client = get_mongo_client()
+db = client["SteamGamesCloud"]
+games_collection = db["gamesCloud"]
+users_collection = db["usersCloud"]
 
-# # Fetch data from MongoDB
-# data = list(collection.find({}, {'_id': 1, 'Title': 1, 'Original Price': 1, 'Discounted Price': 1, 'Release Date': 1, 'Link': 1, 'Game Description': 1, 'Recent Reviews Summary': 1, 'All Reviews Summary': 1, 'Recent Reviews Number': 1, 'All Reviews Number': 1, 'Developer':
-# 1, 'Publisher': 1, 'Supported Languages': 1, 'Popular Tags': 1, 'Game Features': 1, 'Minimum Requirements': 1}))
-
-# # Streamlit app code
-# st.title('Video Game Showcase')
-
-# for item in data:
-#     st.header(item['Title'])
-#     # Placeholder for actual image link (you can add a function to fetch images dynamically)
-#     placeholder_image = "https://via.placeholder.com/200"  # Replace with actual image fetching logic
-#     st.image(placeholder_image, width=200)
-#     st.write(f"Original Price: {item['Original Price']}")
-#     st.write(f"Discounted Price: {item['Discounted Price']}")
-#     st.write(f"Release Date: {item['Release Date']}")
-#     st.write(f"Description: {item['Game Description']}")
-#     st.write(f"Recent Reviews: {item['Recent Reviews Summary']} ({item['Recent Reviews Number']})")
-#     st.write(f"All Reviews: {item['All Reviews Summary']} ({item['All Reviews Number']})")
-#     st.write(f"Developer: {item['Developer']}")
-#     st.write(f"Publisher: {item['Publisher']}")
-#     st.write(f"Supported Languages: {', '.join(item['Supported Languages'])}")
-#     st.write(f"Popular Tags: {', '.join(item['Popular Tags'])}")
-#     st.write(f"Game Features: {', '.join(item['Game Features'])}")
-#     st.write(f"Minimum Requirements: {item['Minimum Requirements']}")
-
-#     # Add like button and logging mechanism if needed
-#     if st.button('Like'):
-#         st.write("Thank you for your like!")
-        
-# Load data from MongoDB into DataFrame
-def load_data():
-    cursor = collection.find()
-    df = pd.DataFrame(list(cursor))
+# Step 2: Data Transformation (Adapted for the new dataset)
+def clean_data(df):
+    # Drop rows with missing values in important columns
+    df = df.dropna(subset=['title', 'developer', 'publisher', 'genres', 'price', 'discounted_price'])
+    
+    # Convert 'price' and 'discounted_price' to numeric (remove '$' and ',' if any)
+    df['price'] = df['price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
+    df['discounted_price'] = df['discounted_price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
+    
+    # Extract year from the release date (adjust to your dataset's column name)
+    df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
+    df['release_year'] = df['release_date'].dt.year
+    
+    # Handle missing genres (some games may not have any genre listed)
+    df['genres'] = df['genres'].fillna('Unknown')
+    
     return df
 
-df = load_data()
+df_clean = clean_data(df_clean)
 
-# # Check columns after loading data
-# st.write(f"Columns available in the DataFrame: {df.columns}")
+# Display the cleaned data in the app
+st.write("Cleaned Data", df_clean.head())
 
-# Streamlit App UI
-st.title("Steam Games - Deals and Discounts")
+# Step 3: Filter System
 
-# Display basic game stats
-st.write("### Game Listings")
-st.write(f"Total Games Available: {len(df)}")
+# Filter by Genre
+genres = df_clean['genres'].explode().unique().tolist()
+selected_genres = st.multiselect("Select Genre(s)", genres, default=genres)
 
-# Filters for User Selection
-st.sidebar.header("Filter by:")
+# Filter by Release Year
+min_year = df_clean['release_year'].min()
+max_year = df_clean['release_year'].max()
+selected_years = st.slider("Select Release Year Range", min_year, max_year, (min_year, max_year))
 
-# Handle missing 'Discounted Price' column and NaN values
-if 'Discounted Price' in df.columns:
-    # Remove dollar signs and convert to numeric for filtering
-    df['Discounted Price'] = df['Discounted Price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
-    df['Original Price'] = df['Original Price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
+# Filter by Price
+min_price = df_clean['price'].min()
+max_price = df_clean['price'].max()
+selected_price_range = st.slider("Select Price Range", min_price, max_price, (min_price, max_price))
 
-    df = df.dropna(subset=['Discounted Price'])  # Drop rows where 'Discounted Price' is NaN
-    if not df.empty:
-        min_price, max_price = df['Discounted Price'].min(), df['Discounted Price'].max()
+# Apply filters to the data
+filtered_df = df_clean[
+    df_clean['genres'].apply(lambda x: any(genre in selected_genres for genre in x)) &
+    (df_clean['release_year'] >= selected_years[0]) &
+    (df_clean['release_year'] <= selected_years[1]) &
+    (df_clean['price'] >= selected_price_range[0]) &
+    (df_clean['price'] <= selected_price_range[1])
+]
+
+# Display filtered data
+st.write(f"Filtered Data (Total {len(filtered_df)} games)", filtered_df)
+
+# Step 4: "Like" Feature (Save Game to Wishlist)
+st.subheader("Like a Game to Add to Your Wishlist")
+
+# Simulate user login with a username
+username = st.text_input("Enter your username:")
+
+if username:
+    # Check if the user exists in the users collection (we will simulate this part)
+    if 'user_data' not in st.session_state:
+        st.session_state.user_data = {"username": username, "wishlist": []}
+    
+    # Display User's Wishlist
+    st.subheader(f"Welcome {username}!")
+    st.write("Here are the games you've liked (your wishlist):")
+    
+    # Display the wishlist games for the current user
+    wishlist_game_ids = st.session_state.user_data["wishlist"]
+    
+    # Simulate fetching games from the wishlist (mocking it here)
+    wishlist_games = filtered_df[filtered_df['title'].isin(wishlist_game_ids)]
+    
+    if not wishlist_games.empty:
+        st.write(wishlist_games[['title', 'price', 'discounted_price', 'release_date', 'genres']])
     else:
-        min_price, max_price = 0, 100  # Default reasonable range if no valid price data exists
-    selected_price_range = st.sidebar.slider(
-        "Select Price Range", 
-        min_value=0,  # Ensure min_value is always at least 0
-        max_value=max_price, 
-        value=(min_price, max_price)  # Default range from min_price to max_price
-    )
+        st.write("Your wishlist is empty.")
 
-    # Apply Filters based on Discounted Price
-    filtered_df = df[
-        (df['Discounted Price'] >= selected_price_range[0]) &
-        (df['Discounted Price'] <= selected_price_range[1]) &
-        (df['Rating'] >= selected_rating)
-    ]
-else:
-    st.warning("Discounted Price data not available. Please check the MongoDB data.")
-    filtered_df = df  # No filtering on price if it's missing
+# Loop through the filtered data and display each game with a "Like" button
+st.subheader("Like a Game to Add to Your Wishlist")
 
-genres = df['Popular Tags'].dropna().unique()
-selected_genre = st.sidebar.selectbox("Select Genre", ["All"] + list(genres))
-
-selected_rating = st.sidebar.slider("Select Minimum Rating", 0.0, 5.0, 3.5)
-on_sale = st.sidebar.checkbox("Show only on-sale games")
-
-if selected_genre != "All":
-    filtered_df = filtered_df[filtered_df['Popular Tags'].str.contains(selected_genre, case=False, na=False)]
-
-if on_sale:
-    filtered_df = filtered_df[filtered_df['on_sale'] == True]
-
-# Display filtered game list
-st.write(f"### Showing {len(filtered_df)} games")
-st.dataframe(filtered_df[['Title', 'Discounted Price', 'Rating', 'Release Date', 'Popular Tags', 'on_sale']])
-
-# Sorting options
-sort_by = st.sidebar.selectbox("Sort by:", ["Discounted Price", "Rating", "Release Date"])
-if sort_by == "Discounted Price":
-    filtered_df = filtered_df.sort_values(by="Discounted Price", ascending=True)
-elif sort_by == "Rating":
-    filtered_df = filtered_df.sort_values(by="Rating", ascending=False)
-elif sort_by == "Release Date":
-    filtered_df = filtered_df.sort_values(by="Release Date", ascending=False)
-
-# Display sorted games
-st.write(f"### Sorted Games - {sort_by}")
-st.dataframe(filtered_df[['Title', 'Discounted Price', 'Rating', 'Release Date', 'Popular Tags', 'on_sale']])
-
-# Display detailed game info when clicked
-game_to_show = st.selectbox("Select a Game", filtered_df['Title'])
-game_details = filtered_df[filtered_df['Title'] == game_to_show].iloc[0]
-
-st.write("### Game Details")
-st.write(f"**Title**: {game_details['Title']}")
-st.write(f"**Discounted Price**: ${game_details['Discounted Price']}")
-st.write(f"**Original Price**: ${game_details['Original Price']}")
-st.write(f"**Rating**: {game_details['Rating']}/5")
-st.write(f"**Release Date**: {game_details['Release Date']}")
-st.write(f"**Description**: {game_details['Game Description']}")
-st.write(f"**Genres**: {game_details['Popular Tags']}")
-st.write(f"**Developer**: {game_details['Developer']}")
-st.write(f"**Publisher**: {game_details['Publisher']}")
-st.write(f"**Supported Languages**: {game_details['Supported Languages']}")
-st.write(f"**Link**: [Click here]({game_details['Link']})")
-st.write(f"**On Sale**: {'Yes' if game_details['on_sale'] else 'No'}")
+for index, row in filtered_df.iterrows():
+    game_title = row['title']
+    game_price = row['price']
+    game_discounted_price = row['discounted_price']
+    game_release_date = row['release_date']
+    game_genres = ', '.join(row['genres'])
+    game_description = row['game_description']
+    game_reviews_recent = row['recent_reviews_summary']
+    game_reviews_all = row['all_reviews_summary']
+    game_reviews_recent_num = row['recent_reviews_number']
+    game_reviews_all_num = row['all_reviews_number']
+    game_developer = row['developer']
+    game_publisher = row['publisher']
+    game_languages = ', '.join(row['supported_languages'])
+    game_tags = ', '.join(row['popular_tags'])
+    game_features = ', '.join(row['game_features'])
+    game_requirements = row['minimum_requirements']
+    game_link = row['link']
+    
+    # Display game details
+    st.write(f"**{game_title}**")
+    st.write(f"Price: ${game_price} | Discounted Price: ${game_discounted_price}")
+    st.write(f"Release Date: {game_release_date.strftime('%Y-%m-%d')}")
+    st.write(f"Genres: {game_genres}")
+    st.write(f"Description: {game_description}")
+    st.write(f"Recent Reviews: {game_reviews_recent}")
+    st.write(f"All Reviews: {game_reviews_all}")
+    st.write(f"Recent Reviews Number: {game_reviews_recent_num}")
+    st.write(f"All Reviews Number: {game_reviews_all_num}")
+    st.write(f"Developer: {game_developer}")
+    st.write(f"Publisher: {game_publisher}")
+    st.write(f"Supported Languages: {game_languages}")
+    st.write(f"Popular Tags: {game_tags}")
+    st.write(f"Game Features: {game_features}")
+    st.write(f"Minimum Requirements: {game_requirements}")
+    st.write(f"[Link to Game]({game_link})")
+    
+    # "Like" button (Add to wishlist)
+    like_button = st.button(f"❤️ Like {game_title}", key=game_title)
+    
+    if like_button and username:
+        # Add game to user's wishlist in session state (simulating MongoDB update)
+        st.session_state.user_data["wishlist"].append(game_title)
+        st.success(f"Game '{game_title}' has been added to your wishlist!")
