@@ -6,13 +6,21 @@ import plotly.express as px
 from io import StringIO
 import json
 
-# MongoDB Atlas connection setup
 @st.cache_resource
-client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
+def load_data_from_mongo():
+    # MongoDB Atlas connection string
+    client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
+    db = client["SteamGamesCloud"]  
+    games_collection = db["gamesCloud"]
+    users_collection = db["usersCloud"]
+    
+    # Fetch the data from the MongoDB collection
+    data = list(collection.find())  
+    df = pd.DataFrame(data)
+    return df
 
-db = client["SteamGamesCloud"]
-games_collection = db["gamesCloud"]
-users_collection = db["usersCloud"]
+# Load the dataset from MongoDB Atlas
+df = load_data_from_mongo()
 
 # Step 2: Data Transformation (Adapted for the new dataset)
 def clean_data(df):
