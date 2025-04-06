@@ -3,6 +3,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+from pymongo import MongoClient  # Add the MongoClient import
 from io import StringIO
 import json
 
@@ -10,12 +11,12 @@ import json
 def load_data_from_mongo():
     # MongoDB Atlas connection string
     client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
-    db = client["SteamGamesCloud"]  
+    db = client["SteamGamesCloud"]
     games_collection = db["gamesCloud"]
     users_collection = db["usersCloud"]
     
     # Fetch the data from the MongoDB collection
-    data = list(collection.find())  
+    data = list(games_collection.find())  # Fixed collection reference
     df = pd.DataFrame(data)
     return df
 
@@ -40,7 +41,7 @@ def clean_data(df):
     
     return df
 
-df_clean = clean_data(df_clean)
+df_clean = clean_data(df)  # Fixed variable reference
 
 # Display the cleaned data in the app
 st.write("Cleaned Data", df_clean.head())
@@ -48,7 +49,7 @@ st.write("Cleaned Data", df_clean.head())
 # Step 3: Filter System
 
 # Filter by Genre
-genres = df_clean['genres'].explode().unique().tolist()
+genres = df_clean['genres'].str.split(',').explode().unique().tolist()  # Fixed genre splitting
 selected_genres = st.multiselect("Select Genre(s)", genres, default=genres)
 
 # Filter by Release Year
@@ -63,7 +64,7 @@ selected_price_range = st.slider("Select Price Range", min_price, max_price, (mi
 
 # Apply filters to the data
 filtered_df = df_clean[
-    df_clean['genres'].apply(lambda x: any(genre in selected_genres for genre in x)) &
+    df_clean['genres'].apply(lambda x: any(genre in selected_genres for genre in x.split(','))) &  # Fixed genre check
     (df_clean['release_year'] >= selected_years[0]) &
     (df_clean['release_year'] <= selected_years[1]) &
     (df_clean['price'] >= selected_price_range[0]) &
@@ -107,7 +108,7 @@ for index, row in filtered_df.iterrows():
     game_price = row['price']
     game_discounted_price = row['discounted_price']
     game_release_date = row['release_date']
-    game_genres = ', '.join(row['genres'])
+    game_genres = ', '.join(row['genres'].split(','))
     game_description = row['game_description']
     game_reviews_recent = row['recent_reviews_summary']
     game_reviews_all = row['all_reviews_summary']
@@ -140,7 +141,7 @@ for index, row in filtered_df.iterrows():
     st.write(f"[Link to Game]({game_link})")
     
     # "Like" button (Add to wishlist)
-    like_button = st.button(f"❤️ Like {game_title}", key=game_title)
+    like_button = st.button(f"❤️ Like {game_title}", key=str(index))  # Fixed key for the button
     
     if like_button and username:
         # Add game to user's wishlist in session state (simulating MongoDB update)
