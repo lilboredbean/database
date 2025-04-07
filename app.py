@@ -3,7 +3,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 # Connect to MongoDB (update with your connection details)
-client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')  # Replace with your connection string
+client = MongoClient('mongodb://localhost:27017/')  # Replace with your connection string
 db = client['steam_db']
 collection = db['games']
 
