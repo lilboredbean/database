@@ -28,121 +28,181 @@ def get_games(filters=None):
 # Set up page
 st.title("Game Database")
 
-# Filters
-platforms = ['PC', 'PlayStation', 'Xbox', 'Switch']
-genres = ['RPG', 'Action', 'Adventure', 'Strategy']
-ratings = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+# # Filters
+# platforms = ['PC', 'PlayStation', 'Xbox', 'Switch']
+# genres = ['RPG', 'Action', 'Adventure', 'Strategy']
+# ratings = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-platform_filter = st.multiselect("Select Platforms", platforms)
-genre_filter = st.multiselect("Select Genres", genres)
-rating_filter = st.slider("Select Minimum Rating", min_value=1, max_value=10, value=1)
+# platform_filter = st.multiselect("Select Platforms", platforms)
+# genre_filter = st.multiselect("Select Genres", genres)
+# rating_filter = st.slider("Select Minimum Rating", min_value=1, max_value=10, value=1)
 
-# Fetch filtered data
-filters = {
-    'platform': platform_filter,
-    'genre': genre_filter,
-    'rating': rating_filter
-}
-
-games = get_games(filters)
-
-# Display games as cards
-for game in games:
-    st.subheader(game['title'])
-    st.image(game['cover_image_url'], width=200)  # Display game cover image
-    st.write(f"**Release Date**: {game['release_date']}")
-    st.write(f"**Rating**: {game['rating']}/10")
-    st.write(f"**Genres**: {', '.join(game['genres'])}")
-    st.write(f"**Platforms**: {', '.join(game['platforms'])}")
-    if st.button(f"View Details for {game['title']}"):
-        st.write(f"**Summary**: {game['summary']}")
-        st.write(f"**Developers**: {game['developers']}")
-        st.write(f"**Plays**: {game['plays']}")
-        st.write(f"**Currently Playing**: {game['playing']}")
-        st.write(f"**Backlogs**: {game['backlogs']}")
-        st.write(f"**Lists**: {', '.join(game['lists'])}")
-        for review in game['reviews']:
-            st.write(f"- {review}")
-
-import streamlit as st
-from mongodb_connection import users_collection, games_collection
-
-# Function to get user wishlist
-def get_user_wishlist(user_id):
-    user = users_collection.find_one({"user_id": user_id})
-    return user['wishlist'] if user else []
-
-# Function to add a game to wishlist
-def add_to_wishlist(user_id, game_id):
-    users_collection.update_one(
-        {"user_id": user_id},
-        {"$addToSet": {"wishlist": game_id}}
-    )
-
-# Function to remove a game from wishlist
-def remove_from_wishlist(user_id, game_id):
-    users_collection.update_one(
-        {"user_id": user_id},
-        {"$pull": {"wishlist": game_id}}
-    )
-
-# Simulating a logged-in user
-user_id = 'example_user'
-
-# Fetch user wishlist
-wishlist = get_user_wishlist(user_id)
-
-st.title("Your Wishlist")
-
-# Display wishlist games
-for game_id in wishlist:
-    game = games_collection.find_one({"game_id": game_id})
-    st.subheader(game['title'])
-    st.write(f"**Rating**: {game['rating']}")
-    st.write(f"**Release Date**: {game['release_date']}")
+# Fetching games from MongoDB
+def get_games(filters=None):
+    db = connect_to_mongo()
+    if db:
+        games_collection = db["games"]
+        query = {}
+        
+        # Apply filters if any
+        if filters:
+            if filters.get('platforms'):
+                query["Platforms"] = {"$in": filters['platforms']}
+            if filters.get('genres'):
+                query["Genres"] = {"$in": filters['genres']}
+            if filters.get('rating'):
+                query["Rating"] = {"$gte": filters['rating']}
+        
+        games = list(games_collection.find(query))
+        return games
+    return []
     
-    if st.button(f"Remove {game['title']} from Wishlist"):
-        remove_from_wishlist(user_id, game_id)
-        st.write(f"Removed {game['title']} from wishlist.")
-    st.write("---")
+def display_game_cards(games):
+    for game in games:
+        title = game.get('Title')
+        release_date = game.get('Release_Date')
+        rating = game.get('Rating')
+        
+        st.subheader(title)
+        st.write(f"Release Date: {release_date}")
+        st.write(f"Rating: {rating}")
+        st.button('View Details', key=title, on_click=show_game_details, args=(game,))
 
-# Search and add to wishlist
-game_search = st.text_input("Search for a game to add to your wishlist:")
-if game_search:
-    game = games_collection.find_one({"title": {"$regex": game_search, "$options": "i"}})
-    if game:
-        if st.button(f"Add {game['title']} to Wishlist"):
-            add_to_wishlist(user_id, game['game_id'])
-            st.write(f"Added {game['title']} to wishlist.")
+def show_game_details(game):
+    """Show more details of the game on button click"""
+    st.subheader(game.get('Title'))
+    st.write(f"**Release Date**: {game.get('Release_Date')}")
+    st.write(f"**Developers**: {ast.literal_eval(game.get('Developers'))}")
+    st.write(f"**Summary**: {game.get('Summary')}")
+    st.write(f"**Platforms**: {ast.literal_eval(game.get('Platforms'))}")
+    st.write(f"**Genres**: {ast.literal_eval(game.get('Genres'))}")
+    st.write(f"**Rating**: {game.get('Rating')}")
+    st.write(f"**Plays**: {game.get('Plays')}")
+    st.write(f"**Reviews**: {game.get('Reviews')}")
 
-import streamlit as st
-from mongodb_connection import users_collection
+def game_database_page():
+    st.title("Game Database")
 
-# User login/signup logic
-def login(user_id, password):
-    user = users_collection.find_one({"user_id": user_id, "password": password})
-    return user
+    # Search and filter functionality
+    search_query = st.text_input("Search for a game by title:")
+    platforms = st.multiselect("Filter by Platform", ['PC', 'PlayStation', 'Xbox'])
+    genres = st.multiselect("Filter by Genre", ['Action', 'RPG', 'Adventure', 'Strategy'])
+    rating = st.slider("Filter by Rating", 0.0, 5.0, 4.0, 0.1)
 
-def signup(user_id, password):
-    users_collection.insert_one({"user_id": user_id, "password": password, "wishlist": []})
+    filters = {
+        'platforms': platforms,
+        'genres': genres,
+        'rating': rating
+    }
 
-# User login form
-st.title("User Login")
+    # Fetch games based on filters
+    games = get_games(filters) if search_query == "" else get_games(filters)  # Apply search query if any
+    display_game_cards(games)
 
-user_id = st.text_input("User ID")
-password = st.text_input("Password", type="password")
+# Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
 
-if st.button("Login"):
-    user = login(user_id, password)
-    if user:
-        st.write(f"Welcome back, {user_id}!")
+def get_user_wishlist(user_id):
+    db = connect_to_mongo()
+    if db:
+        wishlist_collection = db["wishlist"]
+        user_wishlist = wishlist_collection.find_one({"user_id": user_id})  # Assuming user_id is stored
+        return user_wishlist.get('games', []) if user_wishlist else []
+    return []
+
+def update_wishlist(user_id, game_id, action):
+    db = connect_to_mongo()
+    if db:
+        wishlist_collection = db["wishlist"]
+        if action == 'add':
+            wishlist_collection.update_one(
+                {"user_id": user_id},
+                {"$push": {"games": game_id}},
+                upsert=True
+            )
+        elif action == 'remove':
+            wishlist_collection.update_one(
+                {"user_id": user_id},
+                {"$pull": {"games": game_id}}
+            )
+
+def wishlist_page():
+    st.title("Wishlist")
+
+    # Fetch user wishlist (Assume user_id is available, e.g., logged-in user)
+    user_id = "12345"  # Just for example
+    wishlist = get_user_wishlist(user_id)
+    
+    if wishlist:
+        for game_id in wishlist:
+            game = get_games(filters={'game_id': game_id})[0]  # Fetch game by ID from database
+            st.subheader(game.get('Title'))
+            st.button('Remove from Wishlist', key=game_id, on_click=update_wishlist, args=(user_id, game_id, 'remove'))
     else:
-        st.write("Invalid credentials.")
+        st.write("Your wishlist is empty!")
 
-# Signup form
-if st.button("Sign Up"):
-    signup(user_id, password)
-    st.write(f"Account created for {user_id}. Please log in.")
+    # Add a button to add more games from the database
+    st.write("Add more games to your wishlist")
+    game_id_to_add = st.text_input("Enter Game ID to add to Wishlist:")
+    if st.button('Add to Wishlist'):
+        update_wishlist(user_id, game_id_to_add, 'add')
+        st.success(f"Game {game_id_to_add} added to wishlist.")
+import hashlib
+
+# Function for password hashing (you can replace this with a more secure hashing algorithm)
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Simulate database of users (can be replaced with a real MongoDB collection)
+users_db = {}
+
+def login():
+    st.title("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type='password')
+
+    if st.button("Login"):
+        if users_db.get(username) == hash_password(password):
+            st.success("Login successful")
+            return username
+        else:
+            st.error("Invalid credentials")
+    return None
+
+def signup():
+    st.title("Sign Up")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type='password')
+
+    if st.button("Sign Up"):
+        users_db[username] = hash_password(password)
+        st.success("Account created successfully")
+
+def user_account_page():
+    # User account login or signup
+    page = st.radio("Choose page", ["Login", "Sign Up"])
+    
+    if page == "Login":
+        username = login()
+        if username:
+            st.write(f"Welcome, {username}!")
+            wishlist_page()  # Show wishlist page if user is logged in
+
+    elif page == "Sign Up":
+        signup()
+        
+def main():
+    page = st.sidebar.selectbox("Choose a page", ["Game Database", "Wishlist", "User Account"])
+    
+    if page == "Game Database":
+        game_database_page()
+    elif page == "Wishlist":
+        wishlist_page()
+    elif page == "User Account":
+        user_account_page()
+
+if __name__ == "__main__":
+    main()
+
 
 
 # # Step 2: Data Transformation 
