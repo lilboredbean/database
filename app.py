@@ -22,8 +22,6 @@ def signup():
     confirm_password = st.text_input("Confirm Password", type="password")
     
     if st.button("Sign Up"):
-        db = connect_to_mongo()
-        if db:
             # Check if the username already exists in the usersCloud collection
             users_collection = db["usersCloud"]
             existing_user = users_collection.find_one({"username": username})
