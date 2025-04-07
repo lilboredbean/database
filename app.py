@@ -262,7 +262,7 @@ def wishlist_page():
         
 def main():
     st.title("Game Database")
-    st.subtitle("Make A Wish 💫")
+    st.subheader("Make A Wish 💫")
     
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         user_account_page()  # Show login/signup page if not logged in
