@@ -11,6 +11,89 @@ def connect_to_mongo():
     except Exception as e:
         st.error(f"Error connecting to MongoDB: {e}")
         return None
+
+# Sign up function
+def signup():
+    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    # Assume you have a users collection
+    users_collection = db["usersCloud"]
+    
+    # Logic for signing up a user (e.g., checking if user exists and adding to DB)
+    st.title("Create an Account")
+    username = st.text_input("Enter your username")
+    password = st.text_input("Enter your password", type="password")
+    
+    if st.button("Sign Up"):
+        if username and password:
+            existing_user = users_collection.find_one({"username": username})
+            if existing_user:
+                st.error("Username already taken.")
+            else:
+                users_collection.insert_one({
+                    "username": username,
+                    "password": password
+                })
+                st.success("Sign up successful!")
+        else:
+            st.error("Please provide both username and password.")
+
+
+# Login function
+def login():
+    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    # Assume the users are stored in the "usersCloud" collection
+    users_collection = db["usersCloud"]
+    
+    # Collect login credentials from the user
+    st.title("Login")
+    username = st.text_input("Enter your username")
+    password = st.text_input("Enter your password", type="password")
+    
+    if st.button("Login"):
+        if username and password:
+            # Check if the user exists in the database
+            user = users_collection.find_one({"username": username})
+            if user:
+                # Here, you would typically verify the password (e.g., by hashing it and comparing)
+                if user["password"] == password:
+                    st.success("Login successful!")
+                    # Proceed to the next page, like the game database page
+                    # e.g., st.session_state.logged_in = True
+                    # Redirect to the main page
+                    # Alternatively, you could store the username in session state
+                else:
+                    st.error("Invalid password.")
+            else:
+                st.error("User not found.")
+        else:
+            st.error("Please provide both username and password.")
+
+# Page to prompt user to log in or sign up
+def user_account_page():
+    st.title("Login")
+    
+    # Check if user is logged in
+    if 'logged_in' in st.session_state and st.session_state.logged_in:
+        st.success("You are already logged in as: " + st.session_state.username)
+        return  # User is already logged in, return early
+
+    # Show options to login or sign up
+    option = st.radio("Choose an option", ("Login", "Sign Up"))
+    if option == "Login":
+        login()
+    elif option == "Sign Up":
+        signup()
+
         
 def get_games(filters):
     db = connect_to_mongo()
@@ -84,72 +167,6 @@ def game_database_page():
     display_game_cards(games)
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
-
-# Sign up function
-def signup():
-    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
-    
-    if db is None:
-        st.error("Could not connect to the database.")
-        return
-    
-    # Assume you have a users collection
-    users_collection = db["usersCloud"]
-    
-    # Logic for signing up a user (e.g., checking if user exists and adding to DB)
-    st.title("Create an Account")
-    username = st.text_input("Enter your username")
-    password = st.text_input("Enter your password", type="password")
-    
-    if st.button("Sign Up"):
-        if username and password:
-            existing_user = users_collection.find_one({"username": username})
-            if existing_user:
-                st.error("Username already taken.")
-            else:
-                users_collection.insert_one({
-                    "username": username,
-                    "password": password
-                })
-                st.success("Sign up successful!")
-        else:
-            st.error("Please provide both username and password.")
-
-
-# Login function
-def login():
-    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
-    
-    if db is None:
-        st.error("Could not connect to the database.")
-        return
-    
-    # Assume the users are stored in the "usersCloud" collection
-    users_collection = db["usersCloud"]
-    
-    # Collect login credentials from the user
-    st.title("Login")
-    username = st.text_input("Enter your username")
-    password = st.text_input("Enter your password", type="password")
-    
-    if st.button("Login"):
-        if username and password:
-            # Check if the user exists in the database
-            user = users_collection.find_one({"username": username})
-            if user:
-                # Here, you would typically verify the password (e.g., by hashing it and comparing)
-                if user["password"] == password:
-                    st.success("Login successful!")
-                    # Proceed to the next page, like the game database page
-                    # e.g., st.session_state.logged_in = True
-                    # Redirect to the main page
-                    # Alternatively, you could store the username in session state
-                else:
-                    st.error("Invalid password.")
-            else:
-                st.error("User not found.")
-        else:
-            st.error("Please provide both username and password.")
 
 def add_to_wishlist(game_title):
     if not st.session_state.get('logged_in', False):
@@ -242,37 +259,7 @@ def wishlist_page():
             add_to_wishlist(game_title_to_add)
     else:
         st.error("User data not found.")
-
-
-def user_account_page():
-    # User account login or signup
-    page = st.radio("Choose page", ["Login", "Sign Up"])
-    
-    if page == "Login":
-        username = login()
-        if username:
-            st.write(f"Welcome, {username}!")
-            wishlist_page(username)  # Pass the username to wishlist page
-
-    elif page == "Sign Up":
-        signup()
-
-# Page to prompt user to log in or sign up
-def user_account_page():
-    st.title("Login")
-    
-    # Check if user is logged in
-    if 'logged_in' in st.session_state and st.session_state.logged_in:
-        st.success("You are already logged in as: " + st.session_state.username)
-        return  # User is already logged in, return early
-
-    # Show options to login or sign up
-    option = st.radio("Choose an option", ("Login", "Sign Up"))
-    if option == "Login":
-        login()
-    elif option == "Sign Up":
-        signup()
-
+        
 def main():
     st.title("Game Database")
     st.subtitle("Make A Wish 💫")
