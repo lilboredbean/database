@@ -8,11 +8,20 @@
 # from datetime import datetime
 # import json
 
-import streamlit as st
-import pandas as pd
 from pymongo import MongoClient
-from mongodb_connection import games_collection
+import streamlit as st
+import ast
 
+# MongoDB connection
+def connect_to_mongo():
+    try:
+        client = MongoClient("mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble", serverSelectionTimeoutMS=5000)
+        db = client['SteamGamesCloud']  # Update with your DB name
+        return db
+    except Exception as e:
+        st.error(f"Error connecting to MongoDB: {e}")
+        return None
+        
 # Function to get games from MongoDB
 def get_games(filters=None):
     query = {}
