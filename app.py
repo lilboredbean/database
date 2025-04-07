@@ -112,27 +112,38 @@ def signup():
 
 # Login function
 def login():
+    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    # Assume the users are stored in the "usersCloud" collection
+    users_collection = db["usersCloud"]
+    
+    # Collect login credentials from the user
     st.title("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type='password')
-
+    username = st.text_input("Enter your username")
+    password = st.text_input("Enter your password", type="password")
+    
     if st.button("Login"):
-        db = connect_to_mongo()
-        if db:
-            # Fetch user data from usersCloud collection
-            users_collection = db["usersCloud"]
+        if username and password:
+            # Check if the user exists in the database
             user = users_collection.find_one({"username": username})
-
             if user:
-                # Compare hashed password
-                if user["password"] == hash_password(password):
+                # Here, you would typically verify the password (e.g., by hashing it and comparing)
+                if user["password"] == password:
                     st.success("Login successful!")
-                    return username
+                    # Proceed to the next page, like the game database page
+                    # e.g., st.session_state.logged_in = True
+                    # Redirect to the main page
+                    # Alternatively, you could store the username in session state
                 else:
-                    st.error("Incorrect password.")
+                    st.error("Invalid password.")
             else:
                 st.error("User not found.")
-    return None
+        else:
+            st.error("Please provide both username and password.")
 
 # Get the user's wishlist from the database
 def get_user_wishlist(username):
