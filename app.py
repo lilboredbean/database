@@ -159,7 +159,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # Simulate database of users (can be replaced with a real MongoDB collection)
-users_db = {}
+users_db = {usersCloud}
 
 def login():
     st.title("Login")
