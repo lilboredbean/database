@@ -59,6 +59,12 @@ def show_game_details(game):
     st.write(f"**Reviews**: {game.get('Reviews')}")
 
 def game_database_page():
+
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        st.error("You need to log in to access the game database.")
+        user_account_page()  # Show login/signup page
+        return  # Exit the function if the user is not logged in
+        
     st.title("Game Database")
 
     # Search and filter functionality
@@ -91,7 +97,7 @@ def signup():
     users_collection = db["usersCloud"]
     
     # Logic for signing up a user (e.g., checking if user exists and adding to DB)
-    st.title("Sign Up")
+    st.title("Create an Account")
     username = st.text_input("Enter your username")
     password = st.text_input("Enter your password", type="password")
     
@@ -205,9 +211,10 @@ def remove_from_wishlist(game_title):
         st.error("User data not found.")
 
 def wishlist_page():
-    if not st.session_state.get('logged_in', False):
-        st.error("Please log in to access your wishlist.")
-        return  # Exit if the user is not logged in
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        st.error("You need to log in to access your wishlist.")
+        user_account_page()  # Show login/signup page
+        return  # Exit the function if the user is not logged in
     
     db = connect_to_mongo()
     
@@ -250,19 +257,35 @@ def user_account_page():
     elif page == "Sign Up":
         signup()
 
-def main():
-    page = st.sidebar.selectbox("Choose a page", ["Game Database", "Wishlist", "User Account"])
+# Page to prompt user to log in or sign up
+def user_account_page():
+    st.title("Login")
     
-    if page == "Game Database":
-        game_database_page()  # Show the game database page
-    elif page == "Wishlist":
-        username = st.session_state.get('username')
-        if username:
-            wishlist_page(username)  # Show wishlist page for the logged-in user
-        else:
-            st.write("Please log in to see your wishlist.")
-    elif page == "User Account":
-        user_account_page()  # Show login/signup page
+    # Check if user is logged in
+    if 'logged_in' in st.session_state and st.session_state.logged_in:
+        st.success("You are already logged in as: " + st.session_state.username)
+        return  # User is already logged in, return early
+
+    # Show options to login or sign up
+    option = st.radio("Choose an option", ("Login", "Sign Up"))
+    if option == "Login":
+        login()
+    elif option == "Sign Up":
+        signup()
+
+def main():
+    st.title("Game Database")
+    st.subtitle("Make A Wish 💫")
+    
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        user_account_page()  # Show login/signup page if not logged in
+    else:
+        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist"))
+        
+        if option == "Game Database":
+            game_database_page()
+        elif option == "Wishlist":
+            wishlist_page()
 
 if __name__ == "__main__":
     main()
