@@ -107,81 +107,87 @@ def game_database_page():
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
 
-def get_user_wishlist(user_id):
-    db = connect_to_mongo()
-    if db:
-        wishlist_collection = db["wishlist"]
-        user_wishlist = wishlist_collection.find_one({"user_id": user_id})  # Assuming user_id is stored
-        return user_wishlist.get('games', []) if user_wishlist else []
-    return []
+# Sign up function
+def signup():
+    st.title("Sign Up")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type='password')
+    confirm_password = st.text_input("Confirm Password", type='password')
 
-def update_wishlist(user_id, game_id, action):
-    db = connect_to_mongo()
-    if db:
-        wishlist_collection = db["wishlist"]
-        if action == 'add':
-            wishlist_collection.update_one(
-                {"user_id": user_id},
-                {"$push": {"games": game_id}},
-                upsert=True
-            )
-        elif action == 'remove':
-            wishlist_collection.update_one(
-                {"user_id": user_id},
-                {"$pull": {"games": game_id}}
-            )
+    if password != confirm_password:
+        st.error("Passwords do not match.")
+        return
 
-def wishlist_page():
-    st.title("Wishlist")
+    if st.button("Sign Up"):
+        db = connect_to_mongo()
+        if db:
+            # Check if the username already exists in the usersCloud collection
+            users_collection = db["usersCloud"]
+            existing_user = users_collection.find_one({"username": username})
+            if existing_user:
+                st.error("Username already exists. Please choose another one.")
+            else:
+                # Hash the password before saving it
+                hashed_password = hash_password(password)
+                
+                # Insert new user into the usersCloud collection
+                users_collection.insert_one({
+                    "username": username,
+                    "password": hashed_password
+                })
+                
+                st.success("Account created successfully! You can now log in.")
 
-    # Fetch user wishlist (Assume user_id is available, e.g., logged-in user)
-    user_id = "12345"  # Just for example
-    wishlist = get_user_wishlist(user_id)
-    
-    if wishlist:
-        for game_id in wishlist:
-            game = get_games(filters={'game_id': game_id})[0]  # Fetch game by ID from database
-            st.subheader(game.get('Title'))
-            st.button('Remove from Wishlist', key=game_id, on_click=update_wishlist, args=(user_id, game_id, 'remove'))
-    else:
-        st.write("Your wishlist is empty!")
-
-    # Add a button to add more games from the database
-    st.write("Add more games to your wishlist")
-    game_id_to_add = st.text_input("Enter Game ID to add to Wishlist:")
-    if st.button('Add to Wishlist'):
-        update_wishlist(user_id, game_id_to_add, 'add')
-        st.success(f"Game {game_id_to_add} added to wishlist.")
-import hashlib
-
-# Function for password hashing (you can replace this with a more secure hashing algorithm)
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-# Simulate database of users (can be replaced with a real MongoDB collection)
-users_db = db["usersCloud"]
-
+# Login function
 def login():
     st.title("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type='password')
 
     if st.button("Login"):
-        if users_db.get(username) == hash_password(password):
-            st.success("Login successful")
-            return username
-        else:
-            st.error("Invalid credentials")
+        db = connect_to_mongo()
+        if db:
+            # Fetch user data from usersCloud collection
+            users_collection = db["usersCloud"]
+            user = users_collection.find_one({"username": username})
+
+            if user:
+                # Compare hashed password
+                if user["password"] == hash_password(password):
+                    st.success("Login successful!")
+                    return username
+                else:
+                    st.error("Incorrect password.")
+            else:
+                st.error("User not found.")
     return None
 
-def signup():
-    st.title("Sign Up")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type='password')
+# Get the user's wishlist from the database
+def get_user_wishlist(username):
+    db = connect_to_mongo()
+    if db:
+        wishlist_collection = db["wishlist"]
+        user_wishlist = wishlist_collection.find_one({"username": username})
+        if user_wishlist:
+            return user_wishlist.get('games', [])
+    return []
 
-    if st.button("Sign Up"):
-        users_db[username] = hash_password(password)
-        st.success("Account created successfully")
+# Update the user's wishlist (add/remove games)
+def update_wishlist(username, game_id, action):
+    db = connect_to_mongo()
+    if db:
+        wishlist_collection = db["wishlist"]
+        if action == 'add':
+            wishlist_collection.update_one(
+                {"username": username},
+                {"$push": {"games": game_id}},
+                upsert=True
+            )
+        elif action == 'remove':
+            wishlist_collection.update_one(
+                {"username": username},
+                {"$pull": {"games": game_id}}
+            )
 
 def user_account_page():
     # User account login or signup
@@ -191,26 +197,48 @@ def user_account_page():
         username = login()
         if username:
             st.write(f"Welcome, {username}!")
-            wishlist_page()  # Show wishlist page if user is logged in
+            wishlist_page(username)  # Pass the username to wishlist page
 
     elif page == "Sign Up":
         signup()
-        
+
+def wishlist_page(username):
+    st.title(f"{username}'s Wishlist")
+
+    # Fetch user wishlist from the database
+    wishlist = get_user_wishlist(username)
+    
+    if wishlist:
+        for game_id in wishlist:
+            game = get_games(filters={'game_id': game_id})[0]  # Fetch game by ID from the database
+            st.subheader(game.get('Title'))
+            st.button('Remove from Wishlist', key=game_id, on_click=update_wishlist, args=(username, game_id, 'remove'))
+    else:
+        st.write("Your wishlist is empty!")
+
+    # Add a button to add more games from the database
+    st.write("Add more games to your wishlist")
+    game_id_to_add = st.text_input("Enter Game ID to add to Wishlist:")
+    if st.button('Add to Wishlist'):
+        update_wishlist(username, game_id_to_add, 'add')
+        st.success(f"Game {game_id_to_add} added to wishlist.")
+
 def main():
     page = st.sidebar.selectbox("Choose a page", ["Game Database", "Wishlist", "User Account"])
     
     if page == "Game Database":
-        game_database_page()
+        game_database_page()  # Show the game database page
     elif page == "Wishlist":
-        wishlist_page()
+        username = st.session_state.get('username')
+        if username:
+            wishlist_page(username)  # Show wishlist page for the logged-in user
+        else:
+            st.write("Please log in to see your wishlist.")
     elif page == "User Account":
-        user_account_page()
+        user_account_page()  # Show login/signup page
 
 if __name__ == "__main__":
     main()
-
-
-
 # # Step 2: Data Transformation 
 # # Release Dates
 # def convert_release_date(date_str):
