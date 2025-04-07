@@ -23,8 +23,8 @@ def signup():
     
     if st.button("Sign Up"):
         if password == confirm_password:
-            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            users_collection.insert_one({"username": username, "password": hashed_password})
+            # Store plain text password directly
+            users_collection.insert_one({"username": username, "password": password})
             st.success("Account created successfully!")
             st.session_state.logged_in = True
             st.session_state.username = username  # Store the username in session state
@@ -32,7 +32,7 @@ def signup():
         else:
             st.error("Passwords do not match!")
 
-# Login function
+# Login function without bcrypt (verifying plain text passwords)
 def login():
     db = connect_to_mongo()
     users_collection = db["usersCloud"]
@@ -42,13 +42,16 @@ def login():
     
     if st.button("Login"):
         user = users_collection.find_one({"username": username})
-        if user and bcrypt.checkpw(password.encode('utf-8'), user["password"]):
+        
+        if user is None:
+            st.error("No user found with that username.")
+        elif password == user["password"]:
             st.success("Login successful!")
             st.session_state.logged_in = True
             st.session_state.username = username  # Store the username in session state
             st.session_state.is_signup = False  # To check that user is logging in, not signing up
         else:
-            st.error("Invalid username or password.")
+            st.error("Incorrect password.")
             
 # Page to prompt user to log in or sign up
 def user_account_page():
