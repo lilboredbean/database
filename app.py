@@ -69,76 +69,96 @@ def user_account_page():
     elif option == "Sign Up":
         signup()
  
-def get_games(filters):
+# Query games from MongoDB based on filters or search
+def get_filtered_games(search_query, platform_filter, genre_filter, rating_filter):
     db = connect_to_mongo()
-    if db is None:
-        st.error("Could not connect to the database.")
-        return []
-    
-    games_collection = db["games"]
-    query = {}
-
-    # Add filters based on user input
-    if filters.get("platform"):
-        query["Platforms"] = {"$in": filters["platform"]}
-    elif filters.get("genre"):
-        query["Genres"] = {"$in": filters["genre"]}
-    elif filters.get("rating"):
-        query["Rating"] = {"$gte": filters["rating"]}
-    elif filters.get("search_query"):
-        query["Title"] = {"$regex": filters["search_query"], "$options": "i"}  # Case-insensitive search
-
-    # Fetch games from the database based on the filters
-    games = games_collection.find(query)
-    return list(games)
-    
-def display_game_cards(games):
-    for game in games:
-        title = game.get('Title')
-        release_date = game.get('Release_Date')
-        rating = game.get('Rating')
+    if db:
+        games_collection = db["games"]  # Replace with your actual collection name
+        query = {}
         
-        st.subheader(title)
-        st.write(f"Release Date: {release_date}")
-        st.write(f"Rating: {rating}")
-        st.button('View Details', key=title, on_click=show_game_details, args=(game,))
+        if search_query:
+            query["Title"] = {"$regex": search_query, "$options": "i"}  # Case-insensitive search
+        
+        if platform_filter:
+            query["Platforms"] = {"$in": platform_filter}
+        
+        if genre_filter:
+            query["Genres"] = {"$in": genre_filter}
+        
+        if rating_filter:
+            query["Rating"] = {"$gte": rating_filter}
 
+        games = games_collection.find(query)
+        return list(games)
+    return []
+
+# Display a game card
+def display_game_card(game):
+    st.subheader(game["Title"])
+    st.write(f"Release Date: {game['Release_Date']}")
+    st.write(f"Rating: {game['Rating']}")
+    
+    # Display an image if available (replace with actual image URL if needed)
+    if "Image_URL" in game and game["Image_URL"]:
+        try:
+            img = Image.open(game["Image_URL"])
+            st.image(img, width=200)
+        except:
+            st.write("No image available.")
+    
+    st.write(f"Genres: {', '.join(game['Genres'])}")
+    st.write(f"Platforms: {', '.join(game['Platforms'])}")
+    st.write(f"Summary: {game['Summary'][:150]}...")  # Truncate summary for preview
+    if st.button(f"View details for {game['Title']}"):
+        show_game_details(game)
+
+# Show detailed game information
 def show_game_details(game):
-    """Show more details of the game on button click"""
-    st.subheader(game.get('Title'))
-    st.write(f"**Release Date**: {game.get('Release_Date')}")
-    st.write(f"**Developers**: {ast.literal_eval(game.get('Developers'))}")
-    st.write(f"**Summary**: {game.get('Summary')}")
-    st.write(f"**Platforms**: {ast.literal_eval(game.get('Platforms'))}")
-    st.write(f"**Genres**: {ast.literal_eval(game.get('Genres'))}")
-    st.write(f"**Rating**: {game.get('Rating')}")
-    st.write(f"**Plays**: {game.get('Plays')}")
-    st.write(f"**Reviews**: {game.get('Reviews')}")
+    st.header(game["Title"])
+    st.write(f"Release Date: {game['Release_Date']}")
+    st.write(f"Rating: {game['Rating']}")
+    st.write(f"Genres: {', '.join(game['Genres'])}")
+    st.write(f"Platforms: {', '.join(game['Platforms'])}")
+    st.write(f"Summary: {game['Summary']}")
+    
+    # Optional: Add a trailer or more media
+    if "Trailer_URL" in game and game["Trailer_URL"]:
+        st.video(game["Trailer_URL"])
 
+# Game database page with filters and search bar
 def game_database_page():
+    # Search bar
+    search_query = st.text_input("Search for games by title")
 
-    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
-        st.error("You need to log in to access the game database.")
-        user_account_page()  # Show login/signup page
-        return  # Exit the function if the user is not logged in
-        
-    st.title("Game Database")
+    # Filters for platform, genre, and rating
+    platform_filter = st.multiselect(
+        "Select Platforms",
+        options=["Windows PC", "PlayStation 4", "Xbox One", "PlayStation 5", "Xbox Series"],
+        default=[]
+    )
+    
+    genre_filter = st.multiselect(
+        "Select Genres",
+        options=["Adventure", "RPG", "Action", "Strategy", "Shooter"],
+        default=[]
+    )
+    
+    rating_filter = st.slider(
+        "Select Minimum Rating",
+        min_value=1,
+        max_value=5,
+        value=1  # Default to 1 to show all ratings
+    )
 
-    # Search and filter functionality
-    search_query = st.text_input("Search for a game by title:")
-    platforms = st.multiselect("Filter by Platform", ['PC', 'PlayStation', 'Xbox'])
-    genres = st.multiselect("Filter by Genre", ['Action', 'RPG', 'Adventure', 'Strategy'])
-    rating = st.slider("Filter by Rating", 0.0, 5.0, 4.0, 0.1)
+    # Get the filtered games (or all if no filters are applied)
+    games = get_filtered_games(search_query, platform_filter, genre_filter, rating_filter)
 
-    filters = {
-        'platforms': platforms,
-        'genres': genres,
-        'rating': rating
-    }
-
-    # Fetch games based on filters
-    games = get_games(filters) if search_query == "" else get_games(filters)  # Apply search query if any
-    display_game_cards(games)
+    # Display the game cards
+    if games:
+        for game in games:
+            display_game_card(game)
+    else:
+        st.write("No games found with the selected filters or search query.")
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
 
