@@ -80,7 +80,6 @@ def login():
 
 # Page to prompt user to log in or sign up
 def user_account_page():
-    st.title("Login")
     
     # Check if user is logged in
     if 'logged_in' in st.session_state and st.session_state.logged_in:
