@@ -12,74 +12,47 @@ def connect_to_mongo():
         st.error(f"Error connecting to MongoDB: {e}")
         return None
 
-# Sign up function
+# Signup function
 def signup():
-    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
-    
-    if db is None:
-        st.error("Could not connect to the database.")
-        return
-    
-    # Assume you have a users collection
+    db = connect_to_mongo()
     users_collection = db["usersCloud"]
     
-    # Logic for signing up a user (e.g., checking if user exists and adding to DB)
-    st.title("Create an Account")
-    username = st.text_input("Enter your username")
-    password = st.text_input("Enter your password", type="password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    confirm_password = st.text_input("Confirm Password", type="password")
     
     if st.button("Sign Up"):
-        if username and password:
-            existing_user = users_collection.find_one({"username": username})
-            if existing_user:
-                st.error("Username already taken.")
-            else:
-                users_collection.insert_one({
-                    "username": username,
-                    "password": password
-                })
-                st.success("Sign up successful!")
+        if password == confirm_password:
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            users_collection.insert_one({"username": username, "password": hashed_password})
+            st.success("Account created successfully!")
+            st.session_state.logged_in = True
+            st.session_state.username = username  # Store the username in session state
+            st.session_state.is_signup = True  # To check that user has signed up
         else:
-            st.error("Please provide both username and password.")
-
+            st.error("Passwords do not match!")
 
 # Login function
 def login():
-    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
-    
-    if db is None:
-        st.error("Could not connect to the database.")
-        return
-    
-    # Assume the users are stored in the "usersCloud" collection
+    db = connect_to_mongo()
     users_collection = db["usersCloud"]
     
-    # Collect login credentials from the user
-    st.title("Login")
-    username = st.text_input("Enter your username")
-    password = st.text_input("Enter your password", type="password")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
     if st.button("Login"):
-        if username and password:
-            # Check if the user exists in the database
-            user = users_collection.find_one({"username": username})
-            if user:
-                # Here, you would typically verify the password (e.g., by hashing it and comparing)
-                if user["password"] == password:
-                    st.success("Login successful!")
-                    # Proceed to the next page, like the game database page
-                    # e.g., st.session_state.logged_in = True
-                    # Redirect to the main page
-                    # Alternatively, you could store the username in session state
-                else:
-                    st.error("Invalid password.")
-            else:
-                st.error("User not found.")
+        user = users_collection.find_one({"username": username})
+        if user and bcrypt.checkpw(password.encode('utf-8'), user["password"]):
+            st.success("Login successful!")
+            st.session_state.logged_in = True
+            st.session_state.username = username  # Store the username in session state
+            st.session_state.is_signup = False  # To check that user is logging in, not signing up
         else:
-            st.error("Please provide both username and password.")
-
+            st.error("Invalid username or password.")
+            
 # Page to prompt user to log in or sign up
 def user_account_page():
+    st.title("Login / Sign Up")
     
     # Check if user is logged in
     if 'logged_in' in st.session_state and st.session_state.logged_in:
@@ -92,8 +65,7 @@ def user_account_page():
         login()
     elif option == "Sign Up":
         signup()
-
-        
+ 
 def get_games(filters):
     db = connect_to_mongo()
     if db is None:
