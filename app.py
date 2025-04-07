@@ -17,12 +17,12 @@ from mongodb_connection import games_collection
 def get_games(filters=None):
     query = {}
     if filters:
-        if 'platform' in filters:
-            query['platforms'] = {'$in': filters['platform']}
-        if 'genre' in filters:
-            query['genres'] = {'$in': filters['genre']}
-        if 'rating' in filters:
-            query['rating'] = {'$gte': filters['rating']}
+        if 'Platform' in filters:
+            query['Platforms'] = {'$in': filters['Platform']}
+        if 'Genre' in filters:
+            query['Genres'] = {'$in': filters['Genre']}
+        if 'Rating' in filters:
+            query['Rating'] = {'$gte': filters['Rating']}
     return list(games_collection.find(query))
 
 # Set up page
