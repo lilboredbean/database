@@ -22,17 +22,28 @@ def connect_to_mongo():
         st.error(f"Error connecting to MongoDB: {e}")
         return None
         
-# Function to get games from MongoDB
-def get_games(filters=None):
+def get_games(filters):
+    db = connect_to_mongo()
+    if db is None:
+        st.error("Could not connect to the database.")
+        return []
+    
+    games_collection = db["games"]  # Replace with your games collection name
     query = {}
-    if filters:
-        if 'Platform' in filters:
-            query['Platforms'] = {'$in': filters['Platform']}
-        if 'Genre' in filters:
-            query['Genres'] = {'$in': filters['Genre']}
-        if 'Rating' in filters:
-            query['Rating'] = {'$gte': filters['Rating']}
-    return list(games_collection.find(query))
+
+    # Add filters based on user input
+    if filters.get("platform"):
+        query["Platforms"] = {"$in": filters["platform"]}
+    if filters.get("genre"):
+        query["Genres"] = {"$in": filters["genre"]}
+    if filters.get("rating"):
+        query["Rating"] = {"$gte": filters["rating"]}
+    if filters.get("search_query"):
+        query["Title"] = {"$regex": filters["search_query"], "$options": "i"}  # Case-insensitive search
+
+    # Fetch games from the database based on the filters
+    games = games_collection.find(query)
+    return list(games)
 
 # # Filters
 # platforms = ['PC', 'PlayStation', 'Xbox', 'Switch']
