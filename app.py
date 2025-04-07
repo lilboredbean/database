@@ -22,15 +22,23 @@ def signup():
     confirm_password = st.text_input("Confirm Password", type="password")
     
     if st.button("Sign Up"):
-        if password == confirm_password:
-            # Store plain text password directly
-            users_collection.insert_one({"username": username, "password": password})
-            st.success("Account created successfully!")
-            st.session_state.logged_in = True
-            st.session_state.username = username  # Store the username in session state
-            st.session_state.is_signup = True  # To check that user has signed up
-        else:
-            st.error("Passwords do not match!")
+        db = connect_to_mongo()
+        if db:
+            # Check if the username already exists in the usersCloud collection
+            users_collection = db["usersCloud"]
+            existing_user = users_collection.find_one({"username": username})
+            if existing_user:
+                st.error("Username already exists. Please choose another one.")
+            else:
+                if password == confirm_password:
+                    # Store plain text password directly
+                    users_collection.insert_one({"username": username, "password": password})
+                    st.success("Account created successfully!")
+                    st.session_state.logged_in = True
+                    st.session_state.username = username  # Store the username in session state
+                    st.session_state.is_signup = True  # To check that user has signed up
+                else:
+                    st.error("Passwords do not match!")
 
 # Login function without bcrypt (verifying plain text passwords)
 def login():
