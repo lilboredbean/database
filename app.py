@@ -1,13 +1,3 @@
-# import pandas as pd
-# import streamlit as st
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import plotly.express as px
-# from pymongo import MongoClient
-# from io import StringIO
-# from datetime import datetime
-# import json
-
 from pymongo import MongoClient
 import streamlit as st
 import ast
@@ -54,25 +44,25 @@ def get_games(filters):
 # genre_filter = st.multiselect("Select Genres", genres)
 # rating_filter = st.slider("Select Minimum Rating", min_value=1, max_value=10, value=1)
 
-# Fetching games from MongoDB
-def get_games(filters=None):
-    db = connect_to_mongo()
-    if db:
-        games_collection = db["games"]
-        query = {}
+# # Fetching games from MongoDB
+# def get_games(filters=None):
+#     db = connect_to_mongo()
+#     if db:
+#         games_collection = db["games"]
+#         query = {}
         
-        # Apply filters if any
-        if filters:
-            if filters.get('platforms'):
-                query["Platforms"] = {"$in": filters['platforms']}
-            if filters.get('genres'):
-                query["Genres"] = {"$in": filters['genres']}
-            if filters.get('rating'):
-                query["Rating"] = {"$gte": filters['rating']}
+#         # Apply filters if any
+#         if filters:
+#             if filters.get('platforms'):
+#                 query["Platforms"] = {"$in": filters['platforms']}
+#             if filters.get('genres'):
+#                 query["Genres"] = {"$in": filters['genres']}
+#             if filters.get('rating'):
+#                 query["Rating"] = {"$gte": filters['rating']}
         
-        games = list(games_collection.find(query))
-        return games
-    return []
+#         games = list(games_collection.find(query))
+#         return games
+#     return []
     
 def display_game_cards(games):
     for game in games:
