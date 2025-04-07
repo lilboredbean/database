@@ -13,37 +13,6 @@ def load_data_from_mongo():
     client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
     db = client["SteamGamesCloud"]
     games_collection = db["gamesCloud"]
-    
-    # Fetch top 10 games by different categories (adjust queries as necessary)
-    top_games = games_collection.aggregate([
-        {"$sort": {"recent_reviews_number": -1}},  # Sort by recent reviews, for example
-        {"$limit": 10},
-        {"$project": {
-            "_id": 1,
-            "title": 1,
-            "price": 1,
-            "discounted_price": 1,
-            "release_date": 1,
-            "genres": 1,
-            "game_description": 1,
-            "recent_reviews_summary": 1,
-            "all_reviews_summary": 1,
-            "recent_reviews_number": 1,
-            "all_reviews_number": 1,
-            "developer": 1,
-            "publisher": 1,
-            "supported_languages": 1,
-            "popular_tags": 1,
-            "game_features": 1,
-            "minimum_requirements": 1,
-            "link": 1
-        }}
-    ])
-    
-    # Convert MongoDB data to DataFrame
-    df = pd.DataFrame(top_games)
-    
-    return df
 
 # Load the dataset from MongoDB Atlas
 df = load_data_from_mongo()
