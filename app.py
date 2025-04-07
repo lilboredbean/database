@@ -18,12 +18,7 @@ def load_data_from_mongo():
 # Load the dataset from MongoDB Atlas
 df = load_data_from_mongo()
 
-# Step 2: Data Transformation (Adapted for the new dataset)
-# Move Links Column to the end of data
-link_column = df['Link']
-df = df.drop(columns=['Link'])
-df['Link'] = link_column
-
+# Step 2: Data Transformation 
 # Release Dates
 def convert_release_date(date_str):
     if pd.isnull(date_str) or date_str in ['Coming Soon', 'To be announced']:
