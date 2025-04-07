@@ -145,32 +145,97 @@ def login():
         else:
             st.error("Please provide both username and password.")
 
-# Get the user's wishlist from the database
-def get_user_wishlist(username):
-    db = connect_to_mongo()
-    if db:
-        wishlist_collection = db["wishlist"]
-        user_wishlist = wishlist_collection.find_one({"username": username})
-        if user_wishlist:
-            return user_wishlist.get('games', [])
-    return []
+def add_to_wishlist(game_title):
+    if not st.session_state.get('logged_in', False):
+        st.error("Please log in to add games to your wishlist.")
+        return
+    
+    db = connect_to_mongo()  # Connect to MongoDB
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username  # Get logged-in user’s username
+    
+    # Find the user document
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        
+        # Check if the game is already in the wishlist
+        if game_title not in [game["Title"] for game in wishlist]:
+            wishlist.append({"Title": game_title})
+            users_collection.update_one({"username": username}, {"$set": {"wishlist": wishlist}})
+            st.success(f"{game_title} added to your wishlist!")
+        else:
+            st.warning(f"{game_title} is already in your wishlist.")
+    else:
+        st.error("User data not found.")
 
-# Update the user's wishlist (add/remove games)
-def update_wishlist(username, game_id, action):
+def remove_from_wishlist(game_title):
+    if not st.session_state.get('logged_in', False):
+        st.error("Please log in to remove games from your wishlist.")
+        return
+    
+    db = connect_to_mongo()  # Connect to MongoDB
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username  # Get logged-in user’s username
+    
+    # Find the user document
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        
+        # Remove the game from the wishlist
+        updated_wishlist = [game for game in wishlist if game["Title"] != game_title]
+        
+        if len(updated_wishlist) < len(wishlist):
+            users_collection.update_one({"username": username}, {"$set": {"wishlist": updated_wishlist}})
+            st.success(f"{game_title} removed from your wishlist!")
+        else:
+            st.warning(f"{game_title} not found in your wishlist.")
+    else:
+        st.error("User data not found.")
+
+def wishlist_page():
+    if not st.session_state.get('logged_in', False):
+        st.error("Please log in to access your wishlist.")
+        return  # Exit if the user is not logged in
+    
     db = connect_to_mongo()
-    if db:
-        wishlist_collection = db["wishlist"]
-        if action == 'add':
-            wishlist_collection.update_one(
-                {"username": username},
-                {"$push": {"games": game_id}},
-                upsert=True
-            )
-        elif action == 'remove':
-            wishlist_collection.update_one(
-                {"username": username},
-                {"$pull": {"games": game_id}}
-            )
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username
+    
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        st.write("Your Wishlist:")
+        
+        for game in wishlist:
+            st.write(game["Title"])
+            if st.button(f"Remove {game['Title']} from Wishlist"):
+                remove_from_wishlist(game["Title"])
+        
+        # Optionally, allow users to add games to wishlist
+        game_title_to_add = st.text_input("Enter game title to add to your wishlist")
+        if st.button("Add to Wishlist") and game_title_to_add:
+            add_to_wishlist(game_title_to_add)
+    else:
+        st.error("User data not found.")
+
 
 def user_account_page():
     # User account login or signup
@@ -184,28 +249,6 @@ def user_account_page():
 
     elif page == "Sign Up":
         signup()
-
-def wishlist_page(username):
-    st.title(f"{username}'s Wishlist")
-
-    # Fetch user wishlist from the database
-    wishlist = get_user_wishlist(username)
-    
-    if wishlist:
-        for game_id in wishlist:
-            game = get_games(filters={'game_id': game_id})[0]  # Fetch game by ID from the database
-            st.subheader(game.get('Title'))
-            st.button('Remove from Wishlist', key=game_id, on_click=update_wishlist, args=(username, game_id, 'remove'))
-    else:
-        st.write("Your wishlist is empty!")
-
-    # Add a button to add more games from the database
-    st.write("Add more games to your wishlist")
-    game_id_to_add = st.text_input("Enter Game ID to add to Wishlist:")
-    if like_button == st.button(f"❤️ Like {game_title}", key=str(index)):
-    #"Like" button (Add to wishlist)
-        update_wishlist(username, game_id_to_add, 'add')
-        st.success(f"Game {game_id_to_add} added to wishlist.")
 
 def main():
     page = st.sidebar.selectbox("Choose a page", ["Game Database", "Wishlist", "User Account"])
