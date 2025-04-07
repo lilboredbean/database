@@ -11,7 +11,7 @@ import json
 client = MongoClient('mongodb://localhost:27017/')  # Replace with your connection string
 db = client['steam_db']
 collection = db['games']
-=======
+
 @st.cache_resource
 def load_data_from_mongo():
     # MongoDB Atlas connection string
