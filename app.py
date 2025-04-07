@@ -19,7 +19,6 @@ def load_data_from_mongo():
     client = MongoClient('mongodb+srv://duck:quack@bubble.ggmhr.mongodb.net/?retryWrites=true&w=majority&appName=Bubble')
     db = client["SteamGamesCloud"]
     games_collection = db["gamesCloud"]
->>>>>>> 1c107ee0025d83895fcadaabc7d4aabdbb0142e5
 
 # Load the dataset from MongoDB Atlas
 df = load_data_from_mongo()
