@@ -191,7 +191,7 @@ def wishlist_page(username):
     # Add a button to add more games from the database
     st.write("Add more games to your wishlist")
     game_id_to_add = st.text_input("Enter Game ID to add to Wishlist:")
-    if like_button == st.button(f"❤️ Like {game_title}", key=str(index))
+    if like_button == st.button(f"❤️ Like {game_title}", key=str(index)):
     #"Like" button (Add to wishlist)
         update_wishlist(username, game_id_to_add, 'add')
         st.success(f"Game {game_id_to_add} added to wishlist.")
