@@ -81,34 +81,33 @@ def game_database_page():
 
 # Sign up function
 def signup():
-    st.title("Sign Up")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type='password')
-    confirm_password = st.text_input("Confirm Password", type='password')
-
-    if password != confirm_password:
-        st.error("Passwords do not match.")
+    db = connect_to_mongo()  # Make sure this function returns a valid db object or None
+    
+    if db is None:
+        st.error("Could not connect to the database.")
         return
-
+    
+    # Assume you have a users collection
+    users_collection = db["usersCloud"]
+    
+    # Logic for signing up a user (e.g., checking if user exists and adding to DB)
+    username = st.text_input("Enter your username")
+    password = st.text_input("Enter your password", type="password")
+    
     if st.button("Sign Up"):
-        db = connect_to_mongo()
-        if db:
-            # Check if the username already exists in the usersCloud collection
-            users_collection = db["usersCloud"]
+        if username and password:
             existing_user = users_collection.find_one({"username": username})
             if existing_user:
-                st.error("Username already exists. Please choose another one.")
+                st.error("Username already taken.")
             else:
-                # Hash the password before saving it
-                hashed_password = hash_password(password)
-                
-                # Insert new user into the usersCloud collection
                 users_collection.insert_one({
                     "username": username,
-                    "password": hashed_password
+                    "password": password
                 })
-                
-                st.success("Account created successfully! You can now log in.")
+                st.success("Sign up successful!")
+        else:
+            st.error("Please provide both username and password.")
+
 
 # Login function
 def login():
