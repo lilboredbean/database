@@ -1,3 +1,6 @@
 streamlit
 pymongo
 pandas
+matplotlib
+seaborn
+plotly
