@@ -7,7 +7,6 @@ from pymongo import MongoClient  # Add the MongoClient import
 from io import StringIO
 import json
 
-<<<<<<< HEAD
 # Connect to MongoDB (update with your connection details)
 client = MongoClient('mongodb://localhost:27017/')  # Replace with your connection string
 db = client['steam_db']
