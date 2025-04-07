@@ -20,10 +20,10 @@ df = load_data_from_mongo()
 # Step 2: Data Transformation (Adapted for the new dataset)
 def clean_data(df):
     # Drop rows with missing values in important columns
-    df = df.dropna(subset=['title', 'developer', 'publisher', 'genres', 'price', 'discounted_price'])
+    df = df.dropna(subset=['title', 'developer', 'publisher', 'genres', 'original_price', 'discounted_price'])
     
     # Convert 'price' and 'discounted_price' to numeric (remove '$' and ',' if any)
-    df['price'] = df['price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
+    df['original_price'] = df['original_price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
     df['discounted_price'] = df['discounted_price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
     
     # Extract year from the release date (adjust to your dataset's column name)
@@ -52,8 +52,8 @@ max_year = df_clean['release_year'].max()
 selected_years = st.slider("Select Release Year Range", min_year, max_year, (min_year, max_year))
 
 # Filter by Price
-min_price = df_clean['price'].min()
-max_price = df_clean['price'].max()
+min_price = df_clean['discounted_price'].min()
+max_price = df_clean['discounted_price'].max()
 selected_price_range = st.slider("Select Price Range", min_price, max_price, (min_price, max_price))
 
 # Apply filters to the data
@@ -61,8 +61,8 @@ filtered_df = df_clean[
     df_clean['genres'].apply(lambda x: any(genre in selected_genres for genre in x.split(','))) &  # Fixed genre check
     (df_clean['release_year'] >= selected_years[0]) &
     (df_clean['release_year'] <= selected_years[1]) &
-    (df_clean['price'] >= selected_price_range[0]) &
-    (df_clean['price'] <= selected_price_range[1])
+    (df_clean['discounted_price'] >= selected_price_range[0]) &
+    (df_clean['discounted_price'] <= selected_price_range[1])
 ]
 
 # Display filtered data
@@ -99,7 +99,7 @@ st.subheader("Like a Game to Add to Your Wishlist")
 
 for index, row in filtered_df.iterrows():
     game_title = row['title']
-    game_price = row['price']
+    game_price = row['original_price']
     game_discounted_price = row['discounted_price']
     game_release_date = row['release_date']
     game_genres = ', '.join(row['genres'].split(','))
