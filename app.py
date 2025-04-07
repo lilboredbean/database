@@ -3,14 +3,10 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-from pymongo import MongoClient  # Add the MongoClient import
+from pymongo import MongoClient
 from io import StringIO
+from datetime import datetime
 import json
-
-# Connect to MongoDB (update with your connection details)
-client = MongoClient('mongodb://localhost:27017/')  # Replace with your connection string
-db = client['steam_db']
-collection = db['games']
 
 @st.cache_resource
 def load_data_from_mongo():
@@ -23,27 +19,299 @@ def load_data_from_mongo():
 df = load_data_from_mongo()
 
 # Step 2: Data Transformation (Adapted for the new dataset)
-def clean_data(df):
-    # Drop rows with missing values in important columns
-    df = df.dropna(subset=['title', 'developer', 'publisher', 'genres', 'original_price', 'discounted_price'])
-    
-    # Convert 'price' and 'discounted_price' to numeric (remove '$' and ',' if any)
-    df['original_price'] = df['original_price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
-    df['discounted_price'] = df['discounted_price'].replace({'\$': '', ',': ''}, regex=True).astype(float)
-    
-    # Extract year from the release date (adjust to your dataset's column name)
-    df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
-    df['release_year'] = df['release_date'].dt.year
-    
-    # Handle missing genres (some games may not have any genre listed)
-    df['genres'] = df['genres'].fillna('Unknown')
-    
-    return df
+# Move Links Column to the end of data
+link_column = df['Link']
+df = df.drop(columns=['Link'])
+df['Link'] = link_column
 
-df_clean = clean_data(df)  # Fixed variable reference
+# Release Dates
+def convert_release_date(date_str):
+    if pd.isnull(date_str) or date_str in ['Coming Soon', 'To be announced']:
+        return date_str
+    else:
+        try:
+            date = datetime.strptime(date_str, '%d %b, %Y')
+            if date > datetime(2023, 8, 15):
+                return "Unknown"
+            else:
+                return date.year
+        except ValueError:
+            try:
+                return datetime.strptime(date_str, '%b %Y').year
+            except ValueError:
+                return date_str
 
-# Display the cleaned data in the app
-st.write("Cleaned Data", df_clean.head())
+df['Release Date'] = df['Release Date'].apply(convert_release_date)
+
+def convert_to_numeric(value):
+    try:
+        cleaned_value = value.replace('$', '').replace(',', '').strip().lower()
+        if cleaned_value in ['free', '0']:
+            return 0
+        return float(cleaned_value)
+    except:
+        return None  
+
+df['Original Price'] = df['Original Price'].apply(convert_to_numeric)
+df['Discounted Price'] = df['Discounted Price'].apply(convert_to_numeric)
+
+df.insert(df.columns.get_loc('Discounted Price') + 1, 'Price Difference', df['Original Price'] - df['Discounted Price'])
+
+# Review NaN Handling
+df['Recent_or_All_Reviews'] = np.where(
+    df['Recent Reviews Number'].notna(),
+    df['Recent Reviews Number'],
+    df['All Reviews Number']
+)
+
+df.insert(df.columns.get_loc('All Reviews Number') + 1, 'Reviews_number', df['Recent_or_All_Reviews'])
+
+df.drop(columns=['Recent_or_All_Reviews'], inplace=True)
+
+df['Reviews_percentage_delete'] = df['Reviews_number'].str.extract(r'(\d+)%')
+
+df.insert(df.columns.get_loc('Reviews_number') + 1, 'Reviews_percentage', df['Reviews_percentage_delete'])
+df.drop(columns=['Reviews_percentage_delete'], inplace=True)
+
+df['Extracted_Reviews'] = df['Reviews_number'].str.extract(r'(\d{1,3}(?:,\d{3})*)(?= user reviews)')
+
+df['Extracted_Reviews'] = pd.to_numeric(df['Extracted_Reviews'].str.replace(',', ''), errors='coerce').astype(pd.Int64Dtype())
+
+df['Reviews_number'] = df['Extracted_Reviews']
+
+df.drop(columns=['Extracted_Reviews'], inplace=True)
+
+df.drop(columns=['Recent Reviews Number', 'All Reviews Number'], inplace=True)
+
+df['Supported Languages'] = df['Supported Languages'].str.replace(r"['\[\]]", '').str.replace(r"'", '')
+df['Popular Tags'] = df['Popular Tags'].str.replace(r"['\[\]]", '').str.replace(r"'", '')
+df['Game Features'] = df['Game Features'].str.replace(r"['\[\]]", '').str.replace(r"'", '')
+
+# Cleaning Requirements
+features_to_extract = ['Processor', 'Memory', 'Graphics', 'DirectX', 'Storage']
+
+cleaned_requirements = []
+for text in df['Minimum Requirements']:
+    if isinstance(text, str):  
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            for feature in features_to_extract:
+                if feature in line:
+                    value = re.sub(r'^' + feature + r':\s*', '', line)
+                    cleaned_lines.append(f"{feature}: {value}")
+                    break
+        cleaned_text = '\n'.join(cleaned_lines)
+        cleaned_requirements.append(cleaned_text)
+    else:
+        cleaned_requirements.append(text)
+
+cleaned_requirements    
+
+df['Minimum Requirements'] = cleaned_requirements
+
+def process_row(row):
+    if isinstance(row, str):
+        return re.sub(r'.*\| Processor: \|', 'Processor: |', row, count=1)
+    return row
+
+df['Minimum Requirements'] = df['Minimum Requirements'].apply(process_row)
+df['Release Date'] = pd.to_numeric(df['Release Date'], errors='coerce')
+current_year = 2023  
+df['Release Date'] = df['Release Date'].where(df['Release Date'] <= current_year, np.nan)
+
+tags_dict = {
+    'Processor': ['Processor:', 'CPU:'],
+    'Memory': ['Memory:', 'RAM:'],
+    'Graphics': ['Graphics:', 'GPU:', 'Video:'],
+    'DirectX': ['DirectX:', 'DX:'],
+    'Network': ['Network:', 'Internet:'],
+    'Storage': ['Storage:', 'Disk Space:', 'HD space:']
+}
+
+def identify_tag(segment):
+    for tag, variations in tags_dict.items():
+        for variation in variations:
+            if variation in segment:
+                return tag
+    return None
+
+for index, row in df.iterrows():
+    segments = [seg.strip() for seg in str(row['Minimum Requirements']).split('|') if seg.strip()]
+
+    for i, segment in enumerate(segments):
+        tag = identify_tag(segment)
+        if tag and i+1 < len(segments):
+            df.at[index, tag] = segments[i+1]
+
+df[['Processor', 'Memory', 'Graphics', 'DirectX', 'Network', 'Storage']] = df[['Processor', 'Memory', 'Graphics', 'DirectX', 'Network', 'Storage']].fillna('N/A')
+
+unique_processor = df['Processor'].unique()
+unique_memory = df['Memory'].unique()
+unique_graphics = df['Graphics'].unique()
+unique_directx = df['DirectX'].unique()
+unique_storage = df['Storage'].unique()
+
+def extract_processor(s):
+    s = s.lower()
+    if 'intel' in s and 'i5' in s:
+        return 'Intel i5'
+    elif 'amd' in s and 'fx' in s:
+        return 'AMD FX'
+    elif 'ryzen' in s:
+        return 'Ryzen'
+    else:
+        return 'Unknown'
+
+df['Processor'] = df['Processor'].apply(extract_processor)
+
+def extract_memory(s):
+    if pd.isna(s):  
+        return s
+
+    match = re.search(r'(\d+(\.\d+)?)([ \t]*[MG]B)', str(s), re.IGNORECASE)  
+    
+    if match:
+        value = float(match.group(1))
+        unit = match.group(3).strip().lower()
+
+        if unit == 'mb':
+            value /= 1024.0
+        
+        return value  
+    
+    return None
+
+df['Memory'] = df['Memory'].apply(extract_memory)
+
+def extract_specifications(text):
+    
+    specs = {
+        'Processor': 'Unknown',
+        
+        'Graphics': 'Unknown',
+        'DirectX': 'Unknown',
+        'Storage': 'Unknown',
+    }
+
+    patterns = {
+        'Processor': [r'Processor: \| ([\w\s®™\-]+[iI][3,5,7,9]|\bIntel Core2 Duo\b|[\w\s®™\-]+[A-Z][\d\-]+)', r'Processor: \| ([\w\s®™\-]+)'],  
+        
+        'Graphics': [r'Graphics: \| ([\w\s®™\-]+[Gg][Tt][Xx]|\bDirectX\b)', r'Graphics: \| ([\w\s®™\-]+)'],  
+        'DirectX': [r'DirectX: \| ([\w\s®™\-]+)'],
+        'Storage': [r'Storage: \| (\d+ [Gg][Bb])']
+    }
+    
+    for spec, pattern_list in patterns.items():
+        for pattern in pattern_list:
+            match = re.search(pattern, text)
+            if match:
+                specs[spec] = match.group(1)
+                break  
+
+    return specs
+
+text1 = 'Processor: | Intel Core2 Duo or better | Memory: | 4 GB RAM | Graphics: | DirectX 9/OpenGL 4.1 capable GPU | DirectX: | Version 9.0 | Storage: | 4 GB available space | Additional Notes: | 1280x768 or better Display. Lag may occur from loading menus or maps. Turn off other programs before running the game.'
+text2 = 'Processor: | TBD | Graphics: | TBD'
+
+def extract_specifications_for_unknowns(row):
+    extracted_specs = {}
+    
+    patterns = {
+        'Processor': r'Processor: \|\s*(.+?)\s*\|',
+        
+        'Graphics': r'Graphics: \|\s*(.+?)\s*\|',
+        'DirectX': r'DirectX: \|\s*(.+?)\s*\|',
+        'Storage': r'Storage: \|\s*(.+?)\s*\|',
+        'Network': r'Network: \|\s*(.+?)\s*\|'
+    }
+
+    for spec, pattern in patterns.items():
+        if row[spec] == "Unknown" and isinstance(row['Minimum Requirements'], str):
+            match = re.search(pattern, row['Minimum Requirements'])
+            if match:
+                extracted_specs[spec] = match.group(1).strip()
+            else:
+                extracted_specs[spec] = "Unknown"
+        else:
+            extracted_specs[spec] = row[spec]
+
+    return pd.Series(extracted_specs)
+
+df[['Processor',  'Graphics', 'DirectX', 'Storage', 'Network']] = df.apply(extract_specifications_for_unknowns, axis=1)
+
+def clean_processor_name(name):
+    name = re.sub(r'[®™]', '', name)
+
+    if 'Intel Core2 Duo or better' in name:
+        return 'Intel Core2 Duo'
+    elif 'Intel Core 2 Duo E6600 or AMD Phenom X3 8750' in name:
+        return 'Intel Core2 Duo'
+    else:
+        return name
+
+df['Processor'] = df['Processor'].apply(clean_processor_name)
+df = df.drop(columns=['Network'])
+
+cols_to_check = ['Processor', 'Memory', 'Graphics', 'DirectX', 'Storage']
+
+for col in cols_to_check:
+    df[col] = df[col].replace('TBD', 'N/A')
+    df[col] = df[col].replace('Unknown', 'N/A')
+
+na_rows = df[cols_to_check].apply(lambda x: 'N/A' in x.values, axis=1)
+nan_release_date = df['Release Date'].isna()
+
+games_with_na_in_target_and_nan_release = (na_rows & nan_release_date).sum()
+
+df.replace('N/A', np.nan, inplace=True)
+
+# Handle Summaries
+df['Reviews Summary'] = df['Recent Reviews Summary'].fillna(df['All Reviews Summary'])
+
+df.insert(df.columns.get_loc('All Reviews Summary') + 1, 'Reviews Summary', df.pop('Reviews Summary'))
+df.drop(columns=['All Reviews Summary', 'Recent Reviews Summary'], inplace=True)
+
+values_to_count = df[df['Reviews Summary'].isna() & df['Release Date'].isna()]
+first_quartile_threshold = df['Reviews_number'].quantile(0.25)
+
+def impute_reviews(row):
+    summary = row['Reviews Summary']
+    num_reviews = row['Reviews_number']
+    
+    if pd.isna(summary):
+        return row
+    
+    if re.search(r'\d+ user reviews', str(summary)):
+        row['Reviews Summary'] = np.nan
+        row['Reviews_percentage'] = np.nan
+        return row
+    
+    if pd.isna(row['Reviews_percentage']):
+        if summary == 'Overwhelmingly Positive':
+            row['Reviews_percentage'] = 97
+        elif summary == 'Very Positive':
+            row['Reviews_percentage'] = 87
+        elif summary == 'Positive':
+            row['Reviews_percentage'] = 89.5 if num_reviews > first_quartile_threshold else 87
+        elif summary == 'Mostly Positive':
+            row['Reviews_percentage'] = 74.5
+        elif summary == 'Mixed':
+            row['Reviews_percentage'] = 54.5
+        elif summary == 'Mostly Negative':
+            row['Reviews_percentage'] = 29.5
+        elif summary == 'Negative':
+            row['Reviews_percentage'] = 19.5 if num_reviews > first_quartile_threshold else 29.5
+        elif summary == 'Very Negative':
+            row['Reviews_percentage'] = 9.5
+        elif summary == 'Overwhelmingly Negative':
+            row['Reviews_percentage'] = 9.5
+    return row
+
+df = df.apply(impute_reviews, axis=1)
+
+complete_rows = df.dropna().shape[0]
+df.dropna(subset=['Title'], inplace=True)
 
 # Step 3: Filter System
 
