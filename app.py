@@ -25,9 +25,6 @@ def get_games(filters=None):
             query['Rating'] = {'$gte': filters['Rating']}
     return list(games_collection.find(query))
 
-# Set up page
-st.title("Game Database")
-
 # # Filters
 # platforms = ['PC', 'PlayStation', 'Xbox', 'Switch']
 # genres = ['RPG', 'Action', 'Adventure', 'Strategy']
