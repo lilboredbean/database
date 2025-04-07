@@ -91,6 +91,7 @@ def signup():
     users_collection = db["usersCloud"]
     
     # Logic for signing up a user (e.g., checking if user exists and adding to DB)
+    st.title("Sign Up")
     username = st.text_input("Enter your username")
     password = st.text_input("Enter your password", type="password")
     
