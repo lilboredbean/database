@@ -13,31 +13,6 @@ def connect_to_mongo():
         st.error(f"Error connecting to MongoDB: {e}")
         return None
 
-def transform_data(data):
-    """
-    Transforms string representations of lists in the dataset into actual Python lists.
-    """
-    if isinstance(data, str):  # Check if the data is a string
-        try:
-            # Safely evaluate the string to get the actual list
-            return ast.literal_eval(data)
-        except (ValueError, SyntaxError):
-            # If the string is not a valid list format, return the original data
-            return data
-    return data  # Return data as is if it's not a string
-
-# Apply transformation to each field
-def transform_game_fields(games):
-    """
-    Transforms the 'Platforms' and 'Genres' fields for each game.
-    """
-    for game in games:
-        if "Platforms" in game:
-            game["Platforms"] = transform_data(game["Platforms"])
-        if "Genres" in game:
-            game["Genres"] = transform_data(game["Genres"])
-    return games
-
 # Signup function
 def signup():
     db = connect_to_mongo()
@@ -48,18 +23,21 @@ def signup():
     confirm_password = st.text_input("Confirm Password", type="password")
     
     if st.button("Sign Up"):
-        existing_user = users_collection.find_one({"username": username})
-        if existing_user:
-            st.error("Username already exists. Please choose another one.")
-        else:
-            if password == confirm_password:
-                users_collection.insert_one({"username": username, "password": password})
-                st.success("Account created successfully!")
-                st.session_state.logged_in = True
-                st.session_state.username = username  # Store the username in session state
-                st.session_state.is_signup = True  # To check that user has signed up
+            # Check if the username already exists in the usersCloud collection
+            users_collection = db["usersCloud"]
+            existing_user = users_collection.find_one({"username": username})
+            if existing_user:
+                st.error("Username already exists. Please choose another one.")
             else:
-                st.error("Passwords do not match!")
+                if password == confirm_password:
+                    # Store plain text password directly
+                    users_collection.insert_one({"username": username, "password": password})
+                    st.success("Account created successfully!")
+                    st.session_state.logged_in = True
+                    st.session_state.username = username  # Store the username in session state
+                    st.session_state.is_signup = True  # To check that user has signed up
+                else:
+                    st.error("Passwords do not match!")
 
 # Login function without bcrypt (verifying plain text passwords)
 def login():
@@ -97,11 +75,11 @@ def user_account_page():
         login()
     elif option == "Sign Up":
         signup()
-
+ 
 def get_games_by_search(search_query):
     db = connect_to_mongo()
     if db is not None:  # Check if the connection is valid
-        games_collection = db["games"]
+        games_collection = db["games"]  # Replace with your actual collection name
         query = {}
 
         if search_query:
@@ -116,7 +94,7 @@ def get_games_by_search(search_query):
 def get_games_by_platform(platform_filter):
     db = connect_to_mongo()
     if db is not None:  # Check if the connection is valid
-        games_collection = db["games"]
+        games_collection = db["games"]  # Replace with your actual collection name
         query = {}
 
         if platform_filter:
@@ -127,16 +105,13 @@ def get_games_by_platform(platform_filter):
     else:
         return []
 
+# Display a game card
 def display_game_card(game):
     st.subheader(game["Title"])
     st.write(f"Release Date: {game['Release_Date']}")
     st.write(f"Rating: {game['Rating']}")
-    
-    genres = ", ".join(game["Genres"]) if "Genres" in game else "N/A"
-    platforms = ", ".join(game["Platforms"]) if "Platforms" in game else "N/A"
-
-    st.write(f"Genres: {genres}")
-    st.write(f"Platforms: {platforms}")
+    st.write(f"Genres: {', '.join(game['Genres'])}")
+    st.write(f"Platforms: {', '.join(game['Platforms'])}")
     st.write(f"Summary: {game['Summary'][:150]}...")  # Truncate summary for preview
     if st.button(f"View details for {game['Title']}"):
         show_game_details(game)
@@ -175,6 +150,7 @@ def game_database_page():
         games_by_platform = []
 
     # Combine the results from both filters (if any)
+    # If both search and platform filters are applied, we'll intersect the two lists
     if search_query and platform_filter:
         filtered_games = [game for game in games_by_search if game in games_by_platform]
     elif search_query:
@@ -184,13 +160,117 @@ def game_database_page():
     else:
         filtered_games = []  # No filters applied
 
-    # Transform and display the games
-    filtered_games = transform_game_fields(filtered_games)
+    # Display the games
     for game in filtered_games:
         display_game_card(game)
 
+# Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
+
+def add_to_wishlist(game_title):
+    if not st.session_state.get('logged_in', False):
+        st.error("Please log in to add games to your wishlist.")
+        return
+    
+    db = connect_to_mongo()  # Connect to MongoDB
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username  # Get logged-in user’s username
+    
+    # Find the user document
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        
+        # Check if the game is already in the wishlist
+        if game_title not in [game["Title"] for game in wishlist]:
+            wishlist.append({"Title": game_title})
+            users_collection.update_one({"username": username}, {"$set": {"wishlist": wishlist}})
+            st.success(f"{game_title} added to your wishlist!")
+        else:
+            st.warning(f"{game_title} is already in your wishlist.")
+    else:
+        st.error("User data not found.")
+
+def remove_from_wishlist(game_title):
+    if not st.session_state.get('logged_in', False):
+        st.error("Please log in to remove games from your wishlist.")
+        return
+    
+    db = connect_to_mongo()  # Connect to MongoDB
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username  # Get logged-in user’s username
+    
+    # Find the user document
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        
+        # Remove the game from the wishlist
+        updated_wishlist = [game for game in wishlist if game["Title"] != game_title]
+        
+        if len(updated_wishlist) < len(wishlist):
+            users_collection.update_one({"username": username}, {"$set": {"wishlist": updated_wishlist}})
+            st.success(f"{game_title} removed from your wishlist!")
+        else:
+            st.warning(f"{game_title} not found in your wishlist.")
+    else:
+        st.error("User data not found.")
+
+def wishlist_page():
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        st.error("You need to log in to access your wishlist.")
+        user_account_page()  # Show login/signup page
+        return  # Exit the function if the user is not logged in
+    
+    db = connect_to_mongo()
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    users_collection = db["usersCloud"]
+    username = st.session_state.username
+    
+    user = users_collection.find_one({"username": username})
+    
+    if user:
+        wishlist = user.get("wishlist", [])
+        st.write("Your Wishlist:")
+        
+        for game in wishlist:
+            st.write(game["Title"])
+            if st.button(f"Remove {game['Title']} from Wishlist"):
+                remove_from_wishlist(game["Title"])
+        
+        # Optionally, allow users to add games to wishlist
+        game_title_to_add = st.text_input("Enter game title to add to your wishlist")
+        if st.button("Add to Wishlist") and game_title_to_add:
+            add_to_wishlist(game_title_to_add)
+    else:
+        st.error("User data not found.")
+        
 def main():
-    game_database_page()
+    st.title("Game Database")
+    st.subheader("Make A Wish 💫")
+    
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        user_account_page()  # Show login/signup page if not logged in
+    else:
+        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist"))
+        
+        if option == "Game Database":
+            game_database_page()
+        elif option == "Wishlist":
+            wishlist_page()
 
 if __name__ == "__main__":
     main()
