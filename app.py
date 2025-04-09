@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 import streamlit as st
 import ast
+import requests
 
 # MongoDB connection
 def connect_to_mongo():
@@ -75,24 +76,29 @@ def user_account_page():
     elif option == "Sign Up":
         signup()
  
-# Query games from MongoDB based on filters or search
-def get_filtered_games(search_query, platform_filter, genre_filter, rating_filter):
+# Query games from MongoDB based on search query (title)
+def get_games_by_search(search_query):
     db = connect_to_mongo()
     if db:
         games_collection = db["games"]  # Replace with your actual collection name
         query = {}
-        
+
         if search_query:
             query["Title"] = {"$regex": search_query, "$options": "i"}  # Case-insensitive search
-        
+
+        games = games_collection.find(query)
+        return list(games)
+    return []
+
+# Query games from MongoDB based on platform filter
+def get_games_by_platform(platform_filter):
+    db = connect_to_mongo()
+    if db:
+        games_collection = db["games"]  # Replace with your actual collection name
+        query = {}
+
         if platform_filter:
             query["Platforms"] = {"$in": platform_filter}
-        
-        if genre_filter:
-            query["Genres"] = {"$in": genre_filter}
-        
-        if rating_filter:
-            query["Rating"] = {"$gte": rating_filter}
 
         games = games_collection.find(query)
         return list(games)
@@ -103,15 +109,6 @@ def display_game_card(game):
     st.subheader(game["Title"])
     st.write(f"Release Date: {game['Release_Date']}")
     st.write(f"Rating: {game['Rating']}")
-    
-    # Display an image if available (replace with actual image URL if needed)
-    if "Image_URL" in game and game["Image_URL"]:
-        try:
-            img = Image.open(game["Image_URL"])
-            st.image(img, width=200)
-        except:
-            st.write("No image available.")
-    
     st.write(f"Genres: {', '.join(game['Genres'])}")
     st.write(f"Platforms: {', '.join(game['Platforms'])}")
     st.write(f"Summary: {game['Summary'][:150]}...")  # Truncate summary for preview
@@ -126,45 +123,45 @@ def show_game_details(game):
     st.write(f"Genres: {', '.join(game['Genres'])}")
     st.write(f"Platforms: {', '.join(game['Platforms'])}")
     st.write(f"Summary: {game['Summary']}")
-    
-    # Optional: Add a trailer or more media
-    if "Trailer_URL" in game and game["Trailer_URL"]:
-        st.video(game["Trailer_URL"])
 
-# Game database page with filters and search bar
+# Game database page with search bar and platform filter
 def game_database_page():
     # Search bar
     search_query = st.text_input("Search for games by title")
 
-    # Filters for platform, genre, and rating
+    # Platform filter
     platform_filter = st.multiselect(
         "Select Platforms",
         options=["Windows PC", "PlayStation 4", "Xbox One", "PlayStation 5", "Xbox Series"],
         default=[]
     )
-    
-    genre_filter = st.multiselect(
-        "Select Genres",
-        options=["Adventure", "RPG", "Action", "Strategy", "Shooter"],
-        default=[]
-    )
-    
-    rating_filter = st.slider(
-        "Select Minimum Rating",
-        min_value=1,
-        max_value=5,
-        value=1  # Default to 1 to show all ratings
-    )
 
-    # Get the filtered games (or all if no filters are applied)
-    games = get_filtered_games(search_query, platform_filter, genre_filter, rating_filter)
-
-    # Display the game cards
-    if games:
-        for game in games:
-            display_game_card(game)
+    # Get the filtered games based on search query
+    if search_query:
+        games_by_search = get_games_by_search(search_query)
     else:
-        st.write("No games found with the selected filters or search query.")
+        games_by_search = []
+
+    # Get the filtered games based on platform filter
+    if platform_filter:
+        games_by_platform = get_games_by_platform(platform_filter)
+    else:
+        games_by_platform = []
+
+    # Combine the results from both filters (if any)
+    # If both search and platform filters are applied, we'll intersect the two lists
+    if search_query and platform_filter:
+        filtered_games = [game for game in games_by_search if game in games_by_platform]
+    elif search_query:
+        filtered_games = games_by_search
+    elif platform_filter:
+        filtered_games = games_by_platform
+    else:
+        filtered_games = []  # No filters applied
+
+    # Display the games
+    for game in filtered_games:
+        display_game_card(game)
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
 
