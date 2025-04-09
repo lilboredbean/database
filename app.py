@@ -28,6 +28,8 @@ def transform_data(data):
     return data  # Return data as is if it's not a string
 
 # Apply transformation to each field
+db = connect_to_mongo()
+games_collection = db["games"] 
 games['Platforms'] = transform_data(games['Platforms'])
 games['Genres'] = transform_data(games['Genres'])
 
