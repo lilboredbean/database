@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import streamlit as st
 import ast
 import requests
+import ast
 
 # MongoDB connection
 def connect_to_mongo():
@@ -12,6 +13,23 @@ def connect_to_mongo():
     except Exception as e:
         st.error(f"Error connecting to MongoDB: {e}")
         return None
+
+def transform_data(data):
+    """
+    Transforms string representations of lists in the dataset into actual Python lists.
+    """
+    if isinstance(data, str):  # Check if the data is a string
+        try:
+            # Safely evaluate the string to get the actual list
+            return ast.literal_eval(data)
+        except (ValueError, SyntaxError):
+            # If the string is not a valid list format, return the original data
+            return data
+    return data  # Return data as is if it's not a string
+
+# Apply transformation to each field
+games['Platforms'] = transform_data(games['Platforms'])
+games['Genres'] = transform_data(games['Genres'])
 
 # Signup function
 def signup():
@@ -105,13 +123,17 @@ def get_games_by_platform(platform_filter):
     else:
         return []
 
-# Display a game card
 def display_game_card(game):
     st.subheader(game["Title"])
     st.write(f"Release Date: {game['Release_Date']}")
     st.write(f"Rating: {game['Rating']}")
-    st.write(f"Genres: {', '.join(game['Genres'])}")
-    st.write(f"Platforms: {', '.join(game['Platforms'])}")
+    
+    # Transform the data before displaying it
+    genres = ", ".join(transform_data(game["Genres"])) if "Genres" in game else "N/A"
+    platforms = ", ".join(transform_data(game["Platforms"])) if "Platforms" in game else "N/A"
+
+    st.write(f"Genres: {genres}")
+    st.write(f"Platforms: {platforms}")
     st.write(f"Summary: {game['Summary'][:150]}...")  # Truncate summary for preview
     if st.button(f"View details for {game['Title']}"):
         show_game_details(game)
