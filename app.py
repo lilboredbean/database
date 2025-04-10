@@ -282,19 +282,47 @@ def eda_page():
     # Convert to DataFrame
     df = pd.DataFrame(games)
 
-    # Chart : Rating distribution
+    # # Chart : Rating distribution
+    # st.subheader("⭐ Rating Distribution")
+    # fig1 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
+    # st.plotly_chart(fig1)
+
+    # # Chart : Number of releases over time
+    # st.subheader("📆 Number of Game Releases Over Time")
+    # df_by_year = df.dropna(subset=["Release_Date"])
+    # df_by_year["Year"] = df_by_year["Release_Date"].dt.year
+    # releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
+    # releases_per_year.columns = ["Year", "Number of Releases"]
+    # fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
+    # st.plotly_chart(fig2)
+
+    # Chart 1: Game count per platform
+    st.subheader("📦 Number of Games per Platform")
+    platform_counts = df_exploded_platforms["Platforms"].value_counts().reset_index()
+    platform_counts.columns = ["Platform", "Game Count"]
+    fig1 = px.bar(platform_counts, x="Platform", y="Game Count", color="Platform")
+    st.plotly_chart(fig1)
+
+    # Chart 2: Game count by genre
+    st.subheader("🎭 Number of Games per Genre")
+    genre_counts = df_exploded_genres["Genres"].value_counts().reset_index()
+    genre_counts.columns = ["Genre", "Game Count"]
+    fig2 = px.bar(genre_counts, x="Genre", y="Game Count", color="Genre")
+    st.plotly_chart(fig2)
+
+    # Chart 3: Rating distribution
     st.subheader("⭐ Rating Distribution")
-    fig1 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
+    fig3 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
     st.plotly_chart(fig3)
 
-    # Chart : Number of releases over time
+    # Chart 4: Number of releases over time
     st.subheader("📆 Number of Game Releases Over Time")
     df_by_year = df.dropna(subset=["Release_Date"])
     df_by_year["Year"] = df_by_year["Release_Date"].dt.year
     releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
     releases_per_year.columns = ["Year", "Number of Releases"]
-    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
-    st.plotly_chart(fig2)
+    fig4 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
+    st.plotly_chart(fig4)
 
 def main():
     st.title("Game Database")
