@@ -310,6 +310,22 @@ def eda_page():
 
     # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
     st.subheader("🌡️ Heatmap: Average Reviews by Year")
+    
+    # Convert Release_Date to datetime, if not already done
+    df["Release_Date"] = pd.to_datetime(df["Release_Date"], errors="coerce")
+    
+    # Remove rows with invalid or missing Release_Date
+    df = df.dropna(subset=["Release_Date"])
+    
+    # Extract the Year from Release_Date
+    df["Year"] = df["Release_Date"].dt.year
+    
+    # Check if 'Year' column exists and is populated
+    if "Year" not in df.columns or df["Year"].isna().sum() > 0:
+        st.error("Error: Year column is missing or contains invalid data.")
+        return
+    
+    # Group by Year and calculate average Reviews
     df_reviews_per_year = df.groupby("Year")["Reviews"].mean().reset_index()
     
     # Ensure the data is valid and not empty
@@ -331,6 +347,7 @@ def eda_page():
     )
     
     st.plotly_chart(fig5, use_container_width=True)
+
 
     # 🤯 Fun Facts
     st.subheader("💡 Fun Facts")
