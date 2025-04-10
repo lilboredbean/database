@@ -310,9 +310,26 @@ def eda_page():
 
     # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
     st.subheader("🌡️ Heatmap: Average Reviews by Year")
-    heat_df = df.groupby("Year")["Reviews"].mean().reset_index()
-    heat_df["Reviews"] = heat_df["Reviews"].round(0)
-    fig5 = px.density_heatmap(heat_df, x="Year", y="Reviews", nbinsx=20, title="Avg Reviews Heatmap", color_continuous_scale="Reds")
+    df_reviews_per_year = df.groupby("Year")["Reviews"].mean().reset_index()
+    
+    # Ensure the data is valid and not empty
+    if df_reviews_per_year.empty:
+        st.error("Error: Could not group data by year.")
+        return
+    
+    # Round the reviews for clearer visualization in the heatmap
+    df_reviews_per_year["Reviews"] = df_reviews_per_year["Reviews"].round(0)
+    
+    # Create the heatmap using plotly
+    fig5 = px.density_heatmap(
+        df_reviews_per_year,
+        x="Year", 
+        y="Reviews", 
+        nbinsx=20, 
+        title="Average Reviews Heatmap by Year",
+        color_continuous_scale="Reds"
+    )
+    
     st.plotly_chart(fig5, use_container_width=True)
 
     # 🤯 Fun Facts
