@@ -303,13 +303,13 @@ def main():
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         user_account_page()  # Show login/signup page if not logged in
     else:
-        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist"))
+        option = st.sidebar.selectbox("Select Page", ("🎮 Game Database", "💫 Wishlist", "📊 Game Data Analysis"))
         
         if option == "🎮 Game Database":
             game_database_page()
-        elif option == "Wishlist 💫":
+        elif option == "💫 Wishlist":
             wishlist_page()
-        elif option == "Game Data Analysis 📊":
+        elif option == "📊 Game Data Analysis":
             eda_page()
 
 if __name__ == "__main__":
