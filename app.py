@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import streamlit as st
 import ast
 import requests
+import plotly.express as px
 
 # MongoDB connection
 def connect_to_mongo():
@@ -257,20 +258,80 @@ def wishlist_page():
             add_to_wishlist(game_title_to_add)
     else:
         st.error("User data not found.")
-        
+
+def eda_page():
+    st.title("🎮 Game Data Analysis")
+    
+    db = connect_to_mongo()
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    games_collection = db["games"]
+    games = list(games_collection.find())
+    
+    if not games:
+        st.warning("No game data available.")
+        return
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(games)
+    
+    # Basic cleanups (ensure expected columns exist)
+    required_columns = ["Title", "Rating", "Release_Date", "Genres", "Platforms"]
+    for col in required_columns:
+        if col not in df.columns:
+            st.error(f"Missing column in dataset: {col}")
+            return
+
+    # Convert Release_Date to datetime
+    df["Release_Date"] = pd.to_datetime(df["Release_Date"], errors="coerce")
+
+    # Unpack lists for genres/platforms for analysis
+    df_exploded_genres = df.explode("Genres")
+    df_exploded_platforms = df.explode("Platforms")
+
+    # Chart 1: Game count per platform
+    st.subheader("📦 Number of Games per Platform")
+    platform_counts = df_exploded_platforms["Platforms"].value_counts().reset_index()
+    platform_counts.columns = ["Platform", "Game Count"]
+    fig1 = px.bar(platform_counts, x="Platform", y="Game Count", color="Platform")
+    st.plotly_chart(fig1)
+
+    # Chart 2: Game count by genre
+    st.subheader("🎭 Number of Games per Genre")
+    genre_counts = df_exploded_genres["Genres"].value_counts().reset_index()
+    genre_counts.columns = ["Genre", "Game Count"]
+    fig2 = px.bar(genre_counts, x="Genre", y="Game Count", color="Genre")
+    st.plotly_chart(fig2)
+
+    # Chart 3: Rating distribution
+    st.subheader("⭐ Rating Distribution")
+    fig3 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
+    st.plotly_chart(fig3)
+
+    # Chart 4: Number of releases over time
+    st.subheader("📆 Number of Game Releases Over Time")
+    df_by_year = df.dropna(subset=["Release_Date"])
+    df_by_year["Year"] = df_by_year["Release_Date"].dt.year
+    releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
+    releases_per_year.columns = ["Year", "Number of Releases"]
+    fig4 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
+    st.plotly_chart(fig4)
+
 def main():
     st.title("Game Database")
     st.subheader("Make A Wish 💫")
-    
-    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
-        user_account_page()  # Show login/signup page if not logged in
-    else:
-        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist"))
-        
-        if option == "Game Database":
-            game_database_page()
-        elif option == "Wishlist":
-            wishlist_page()
 
-if __name__ == "__main__":
-    main()
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        user_account_page()
+    else:
+        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist", "EDA 📊"))
+        
+        if option == "Game Database 🎮":
+            game_database_page()
+        elif option == "Wishlist 💫":
+            wishlist_page()
+        elif option == "EDA 📊":
+            eda_page()
+
