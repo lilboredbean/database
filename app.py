@@ -167,7 +167,6 @@ def game_database_page():
         display_game_card(game)
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
-
 def add_to_wishlist(game_title):
     if not st.session_state.get('logged_in', False):
         st.error("Please log in to add games to your wishlist.")
