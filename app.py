@@ -261,7 +261,7 @@ def wishlist_page():
         st.error("User data not found.")
 
 def eda_page():
-      if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         st.error("You need to log in to access your wishlist.")
         user_account_page()  # Show login/signup page
         return  # Exit the function if the user is not logged in
