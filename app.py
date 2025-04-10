@@ -368,6 +368,14 @@ def main():
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         user_account_page()  # Show login/signup page if not logged in
     else:
+        st.sidebar.markdown(f"👋 Logged in as `{st.session_state.username}`")
+        
+        # 🚪 Logout button
+        if st.sidebar.button("🚪 Logout"):
+            st.session_state.clear()
+            st.experimental_rerun()
+
+        # Navigation
         option = st.sidebar.selectbox("Select Page", ("🎮 Game Database", "💫 Wishlist", "📊 Game Data Analysis"))
         
         if option == "🎮 Game Database":
@@ -376,11 +384,6 @@ def main():
             wishlist_page()
         elif option == "📊 Game Data Analysis":
             eda_page()
-    if st.session_state.get("logged_in", False):
-    st.sidebar.markdown(f"👋 Logged in as `{st.session_state.username}`")
-        if st.sidebar.button("🚪 Logout"):
-            st.session_state.clear()
-            st.experimental_rerun()
 
 
 if __name__ == "__main__":
