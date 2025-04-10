@@ -376,6 +376,12 @@ def main():
             wishlist_page()
         elif option == "📊 Game Data Analysis":
             eda_page()
+    if st.session_state.get("logged_in", False):
+    st.sidebar.markdown(f"👋 Logged in as `{st.session_state.username}`")
+        if st.sidebar.button("🚪 Logout"):
+            st.session_state.clear()
+            st.experimental_rerun()
+
 
 if __name__ == "__main__":
     main()
