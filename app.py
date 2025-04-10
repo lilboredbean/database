@@ -261,9 +261,13 @@ def wishlist_page():
         st.error("User data not found.")
 
 def eda_page():
-    st.title("🎮 Game Data Analysis")
+      if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        st.error("You need to log in to access your wishlist.")
+        user_account_page()  # Show login/signup page
+        return  # Exit the function if the user is not logged in
     
     db = connect_to_mongo()
+    
     if db is None:
         st.error("Could not connect to the database.")
         return
@@ -333,7 +337,7 @@ def main():
             game_database_page()
         elif option == "Wishlist 💫":
             wishlist_page()
-        elif option == "EDA 📊":
+        elif option == "Game Data Analysis 📊":
             eda_page()
 
 if __name__ == "__main__":
