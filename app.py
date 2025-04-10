@@ -300,11 +300,11 @@ def eda_page():
     fig3 = px.bar(top_reviewed, x="Title", y="Reviews", title="Top 10 Most Reviewed Games", color="Reviews", color_continuous_scale="Blues")
     st.plotly_chart(fig3, use_container_width=True)
 
-    # 🎯 Chart 4: Plays vs Rating Scatter
-    st.subheader("🎯 Plays vs. Rating")
-    fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
-                      title="Plays vs. Rating", color_continuous_scale="Viridis")
-    st.plotly_chart(fig4, use_container_width=True)
+    # # 🎯 Chart 4: Plays vs Rating Scatter
+    # st.subheader("🎯 Plays vs. Rating")
+    # fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
+    #                   title="Plays vs. Rating", color_continuous_scale="Viridis")
+    # st.plotly_chart(fig4, use_container_width=True)
 
     # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
     st.subheader("🌡️ Heatmap: Average Reviews by Year")
