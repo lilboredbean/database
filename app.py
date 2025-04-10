@@ -282,78 +282,50 @@ def eda_page():
     # Convert to DataFrame
     df = pd.DataFrame(games)
 
-    #Histogram Chart : Rating distribution
+    # ⭐ Chart 1: Rating Distribution
     st.subheader("⭐ Rating Distribution")
-    fig1 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
-    st.plotly_chart(fig1)
+    fig1 = px.histogram(df, x="Rating", nbins=20, title="Game Ratings", color_discrete_sequence=["#00cc96"])
+    st.plotly_chart(fig1, use_container_width=True)
 
-    #Line Chart : Number of releases over time
-    st.subheader("📆 Number of Game Releases Over Time")
-    df_by_year = df.dropna(subset=["Release_Date"])
-    df_by_year["Year"] = df_by_year["Release_Date"].dt.year
-    releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
+    # 📅 Chart 2: Releases Over Time
+    st.subheader("📆 Game Releases Over Time")
+    releases_per_year = df["Year"].value_counts().sort_index().reset_index()
     releases_per_year.columns = ["Year", "Number of Releases"]
-    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
-    st.plotly_chart(fig2)
+    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True, title="Games Released Per Year")
+    st.plotly_chart(fig2, use_container_width=True)
 
-    # Line chart: Simulate how Plays vs Reviews might evolve (optional)
-    st.subheader("📈 Plays vs Reviews Comparison")
-    fig_line = px.line(
-        x=["Plays", "Reviews"],
-        y=[selected_game["Plays"], selected_game["Reviews"]],
-        labels={"x": "Metric", "y": "Count"},
-        title="Plays vs Reviews"
-    )
-    st.plotly_chart(fig_line)
+    # 🧱 Chart 3: Most Reviewed Games
+    st.subheader("🗣️ Most Reviewed Games")
+    top_reviewed = df.sort_values(by="Reviews", ascending=False).head(10)
+    fig3 = px.bar(top_reviewed, x="Title", y="Reviews", title="Top 10 Most Reviewed Games", color="Reviews", color_continuous_scale="Blues")
+    st.plotly_chart(fig3, use_container_width=True)
 
-    # Bar chart: All metrics side by side
-    st.subheader("📊 Full Stats Overview (Bar Chart)")
-    full_stats_df = pd.DataFrame({
-        "Metric": ["Rating", "Plays", "Playing", "Backlogs", "Wishlist", "Lists", "Reviews"],
-        "Value": [
-            selected_game["Rating"],
-            selected_game["Plays"],
-            selected_game["Playing"],
-            selected_game["Backlogs"],
-            selected_game["Wishlist"],
-            selected_game["Lists"],
-            selected_game["Reviews"]
-        ]
-    })
-    fig_bar = px.bar(full_stats_df, x="Metric", y="Value", color="Metric", title="Stat Breakdown for Selected Game")
-    st.plotly_chart(fig_bar)
+    # 🎯 Chart 4: Plays vs Rating Scatter
+    st.subheader("🎯 Plays vs. Rating")
+    fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
+                      title="Plays vs. Rating", color_continuous_scale="Viridis")
+    st.plotly_chart(fig4, use_container_width=True)
 
-    # Find Titles
-    game_titles = df["Title"].dropna().unique()
-    selected_title = st.selectbox("Choose a game", game_titles)
+    # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
+    st.subheader("🌡️ Heatmap: Average Reviews by Year")
+    heat_df = df.groupby("Year")["Reviews"].mean().reset_index()
+    heat_df["Reviews"] = heat_df["Reviews"].round(0)
+    fig5 = px.density_heatmap(heat_df, x="Year", y="Reviews", nbinsx=20, title="Avg Reviews Heatmap", color_continuous_scale="Reds")
+    st.plotly_chart(fig5, use_container_width=True)
 
-    # Safely find the selected game
-    selected_game_df = df[df["Title"] == selected_title]
+    # 🤯 Fun Facts
+    st.subheader("💡 Fun Facts")
 
-    if selected_game_df.empty:
-        st.warning("Game not found.")
-        return
+    highest_rated = df[df["Rating"] == df["Rating"].max()].iloc[0]
+    most_reviewed = df[df["Reviews"] == df["Reviews"].max()].iloc[0]
+    most_played = df[df["Plays"] == df["Plays"].max()].iloc[0]
 
-    selected_game = selected_game_df.iloc[0]  # Now safe
-
-    # Pie chart for engagement breakdown
-    st.subheader("📊 Engagement Breakdown (Pie Chart)")
-    engagement_data = {
-        "Playing": selected_game["Playing"],
-        "Backlogs": selected_game["Backlogs"],
-        "Wishlist": selected_game["Wishlist"],
-        "Lists": selected_game["Lists"],
-        "Reviews": selected_game["Reviews"]
-    }
-
-    pie_df = pd.DataFrame({
-        "Category": list(engagement_data.keys()),
-        "Count": list(engagement_data.values())
-    })
-
-    fig_pie = px.pie(pie_df, names="Category", values="Count", title=f"Engagement for {selected_title}")
-    st.plotly_chart(fig_pie)
-
+    st.markdown(f"""
+    - 🏆 **Highest Rated Game**: `{highest_rated['Title']}` with a rating of **{highest_rated['Rating']}**
+    - 🗣️ **Most Reviewed Game**: `{most_reviewed['Title']}` with **{most_reviewed['Reviews']} reviews**
+    - 🎮 **Most Played Game**: `{most_played['Title']}` with **{most_played['Plays']} plays**
+    """)
+    
 def main():
     st.title("Game Database")
     st.subheader("Make A Wish 💫")
