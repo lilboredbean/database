@@ -323,12 +323,20 @@ def eda_page():
     fig_bar = px.bar(full_stats_df, x="Metric", y="Value", color="Metric", title="Stat Breakdown for Selected Game")
     st.plotly_chart(fig_bar)
 
-    # Let user choose a game title
-    game_titles = df["Title"].unique()
+    # Find Titles
+    game_titles = df["Title"].dropna().unique()
     selected_title = st.selectbox("Choose a game", game_titles)
-    selected_game = df[df["Title"] == selected_title].iloc[0]
 
-    # Pie chart showing engagement breakdown
+    # Safely find the selected game
+    selected_game_df = df[df["Title"] == selected_title]
+
+    if selected_game_df.empty:
+        st.warning("Game not found.")
+        return
+
+    selected_game = selected_game_df.iloc[0]  # Now safe
+
+    # Pie chart for engagement breakdown
     st.subheader("📊 Engagement Breakdown (Pie Chart)")
     engagement_data = {
         "Playing": selected_game["Playing"],
