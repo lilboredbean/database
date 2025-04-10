@@ -92,21 +92,6 @@ def get_games_by_search(search_query):
     else:
         return []
 
-# Query games from MongoDB based on platform filter
-def get_games_by_platform(platform_filter):
-    db = connect_to_mongo()
-    if db is not None:  # Check if the connection is valid
-        games_collection = db["games"]  # Replace with your actual collection name
-        query = {}
-
-        if platform_filter:
-            query["Platforms"] = {"$in": platform_filter}
-
-        games = games_collection.find(query)
-        return list(games)
-    else:
-        return []
-
 # Display a game card
 def display_game_card(game):
     st.subheader(game["Title"])
