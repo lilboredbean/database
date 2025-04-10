@@ -163,7 +163,7 @@ def game_database_page():
     # Display the games
     for game in filtered_games:
         display_game_card(game)
-        
+
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
 
 def add_to_wishlist(game_title):
@@ -269,7 +269,7 @@ def main():
         
         if option == "Game Database":
             game_database_page()
-        elif option == "Wishlist💫":
+        elif option == "Wishlist":
             wishlist_page()
 
 if __name__ == "__main__":
