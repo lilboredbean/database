@@ -288,11 +288,13 @@ def eda_page():
     st.plotly_chart(fig1, use_container_width=True)
 
     # 📅 Chart 2: Releases Over Time
-    st.subheader("📆 Game Releases Over Time")
-    releases_per_year = df["Year"].value_counts().sort_index().reset_index()
+    st.subheader("📆 Number of Game Releases Over Time")
+    df_by_year = df.dropna(subset=["Release_Date"])
+    df_by_year["Year"] = df_by_year["Release_Date"].dt.year
+    releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
     releases_per_year.columns = ["Year", "Number of Releases"]
-    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True, title="Games Released Per Year")
-    st.plotly_chart(fig2, use_container_width=True)
+    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
+    st.plotly_chart(fig2)
 
     # 🧱 Chart 3: Most Reviewed Games
     st.subheader("🗣️ Most Reviewed Games")
@@ -300,11 +302,11 @@ def eda_page():
     fig3 = px.bar(top_reviewed, x="Title", y="Reviews", title="Top 10 Most Reviewed Games", color="Reviews", color_continuous_scale="Blues")
     st.plotly_chart(fig3, use_container_width=True)
 
-    # # 🎯 Chart 4: Plays vs Rating Scatter
-    # st.subheader("🎯 Plays vs. Rating")
-    # fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
-    #                   title="Plays vs. Rating", color_continuous_scale="Viridis")
-    # st.plotly_chart(fig4, use_container_width=True)
+    # 🎯 Chart 4: Plays vs Rating Scatter
+    st.subheader("🎯 Plays vs. Rating")
+    fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
+                      title="Plays vs. Rating", color_continuous_scale="Viridis")
+    st.plotly_chart(fig4, use_container_width=True)
 
     # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
     st.subheader("🌡️ Heatmap: Average Reviews by Year")
