@@ -130,20 +130,9 @@ def game_database_page():
     else:
         games_by_search = []
 
-    # Get the filtered games based on platform filter
-    if platform_filter:
-        games_by_platform = get_games_by_platform(platform_filter)
-    else:
-        games_by_platform = []
-
-    # Combine the results from both filters (if any)
-    # If both search and platform filters are applied, we'll intersect the two lists
-    if search_query and platform_filter:
-        filtered_games = [game for game in games_by_search if game in games_by_platform]
-    elif search_query:
+    # If both search filters are applied
+    if search_query:
         filtered_games = games_by_search
-    elif platform_filter:
-        filtered_games = games_by_platform
     else:
         filtered_games = []  # No filters applied
 
