@@ -282,12 +282,12 @@ def eda_page():
     # Convert to DataFrame
     df = pd.DataFrame(games)
 
-    # Chart : Rating distribution
+    #Histogram Chart : Rating distribution
     st.subheader("⭐ Rating Distribution")
     fig1 = px.histogram(df, x="Rating", nbins=20, title="Distribution of Game Ratings")
     st.plotly_chart(fig1)
 
-    # Chart : Number of releases over time
+    #Line Chart : Number of releases over time
     st.subheader("📆 Number of Game Releases Over Time")
     df_by_year = df.dropna(subset=["Release_Date"])
     df_by_year["Year"] = df_by_year["Release_Date"].dt.year
@@ -295,6 +295,56 @@ def eda_page():
     releases_per_year.columns = ["Year", "Number of Releases"]
     fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
     st.plotly_chart(fig2)
+
+    # Line chart: Simulate how Plays vs Reviews might evolve (optional)
+    st.subheader("📈 Plays vs Reviews Comparison")
+    fig_line = px.line(
+        x=["Plays", "Reviews"],
+        y=[selected_game["Plays"], selected_game["Reviews"]],
+        labels={"x": "Metric", "y": "Count"},
+        title="Plays vs Reviews"
+    )
+    st.plotly_chart(fig_line)
+
+    # Bar chart: All metrics side by side
+    st.subheader("📊 Full Stats Overview (Bar Chart)")
+    full_stats_df = pd.DataFrame({
+        "Metric": ["Rating", "Plays", "Playing", "Backlogs", "Wishlist", "Lists", "Reviews"],
+        "Value": [
+            selected_game["Rating"],
+            selected_game["Plays"],
+            selected_game["Playing"],
+            selected_game["Backlogs"],
+            selected_game["Wishlist"],
+            selected_game["Lists"],
+            selected_game["Reviews"]
+        ]
+    })
+    fig_bar = px.bar(full_stats_df, x="Metric", y="Value", color="Metric", title="Stat Breakdown for Selected Game")
+    st.plotly_chart(fig_bar)
+
+    # Let user choose a game title
+    game_titles = df["Title"].unique()
+    selected_title = st.selectbox("Choose a game", game_titles)
+    selected_game = df[df["Title"] == selected_title].iloc[0]
+
+    # Pie chart showing engagement breakdown
+    st.subheader("📊 Engagement Breakdown (Pie Chart)")
+    engagement_data = {
+        "Playing": selected_game["Playing"],
+        "Backlogs": selected_game["Backlogs"],
+        "Wishlist": selected_game["Wishlist"],
+        "Lists": selected_game["Lists"],
+        "Reviews": selected_game["Reviews"]
+    }
+
+    pie_df = pd.DataFrame({
+        "Category": list(engagement_data.keys()),
+        "Count": list(engagement_data.values())
+    })
+
+    fig_pie = px.pie(pie_df, names="Category", values="Count", title=f"Engagement for {selected_title}")
+    st.plotly_chart(fig_pie)
 
 def main():
     st.title("Game Database")
