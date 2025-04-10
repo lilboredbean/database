@@ -27,6 +27,8 @@ def clean_data(df):
 =======
 import ast
 import requests
+import pandas as pd
+import plotly.express as px
 
 # MongoDB connection
 def connect_to_mongo():
@@ -169,30 +171,6 @@ def get_games_by_search(search_query):
     else:
         return []
 
-<<<<<<< HEAD
-# Display games with "Like" buttons
-for index, row in filtered_df.iterrows():
-    game_title = row['title']
-    game_price = row['original_price']
-    game_discounted_price = row['discounted_price']
-    game_release_date = row['release_date']
-    game_genres = ', '.join(row['genres'].split(','))
-    
-    st.write(f"**{game_title}**")
-    st.write(f"Price: ${game_price} | Discounted Price: ${game_discounted_price}")
-    st.write(f"Release Date: {game_release_date.strftime('%Y-%m-%d')}")
-    st.write(f"Genres: {game_genres}")
-    
-    # "Like" button
-    like_button = st.button(f"❤️ Like {game_title}", key=f"like_{index}")
-    
-    if like_button and username:
-        if game_title not in st.session_state.user_data["wishlist"]:
-            st.session_state.user_data["wishlist"].append(game_title)
-            st.success(f"Game '{game_title}' has been added to your wishlist!")
-        else:
-            st.warning(f"Game '{game_title}' is already in your wishlist.")
-=======
 # Query games from MongoDB based on platform filter
 def get_games_by_platform(platform_filter):
     db = connect_to_mongo()
@@ -246,20 +224,9 @@ def game_database_page():
     else:
         games_by_search = []
 
-    # Get the filtered games based on platform filter
-    if platform_filter:
-        games_by_platform = get_games_by_platform(platform_filter)
-    else:
-        games_by_platform = []
-
-    # Combine the results from both filters (if any)
-    # If both search and platform filters are applied, we'll intersect the two lists
-    if search_query and platform_filter:
-        filtered_games = [game for game in games_by_search if game in games_by_platform]
-    elif search_query:
+    # If both search filters are applied
+    if search_query:
         filtered_games = games_by_search
-    elif platform_filter:
-        filtered_games = games_by_platform
     else:
         filtered_games = []  # No filters applied
 
@@ -268,7 +235,6 @@ def game_database_page():
         display_game_card(game)
 
 # Assuming that a user's wishlist is stored as a list in MongoDB, we fetch it like this:
-
 def add_to_wishlist(game_title):
     if not st.session_state.get('logged_in', False):
         st.error("Please log in to add games to your wishlist.")
@@ -360,7 +326,109 @@ def wishlist_page():
             add_to_wishlist(game_title_to_add)
     else:
         st.error("User data not found.")
-        
+
+def eda_page():
+    if 'logged_in' not in st.session_state or not st.session_state.logged_in:
+        st.error("You need to log in to access your wishlist.")
+        user_account_page()  # Show login/signup page
+        return  # Exit the function if the user is not logged in
+    
+    db = connect_to_mongo()
+    
+    if db is None:
+        st.error("Could not connect to the database.")
+        return
+    
+    games_collection = db["games"]
+    games = list(games_collection.find())
+    
+    if not games:
+        st.warning("No game data available.")
+        return
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(games)
+
+    # ⭐ Chart 1: Rating Distribution
+    st.subheader("⭐ Rating Distribution")
+    fig1 = px.histogram(df, x="Rating", nbins=20, title="Game Ratings", color_discrete_sequence=["#00cc96"])
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # 📅 Chart 2: Releases Over Time
+    st.subheader("📆 Number of Game Releases Over Time")
+    df_by_year = df.dropna(subset=["Release_Date"])
+    df_by_year["Year"] = df_by_year["Release_Date"].dt.year
+    releases_per_year = df_by_year["Year"].value_counts().sort_index().reset_index()
+    releases_per_year.columns = ["Year", "Number of Releases"]
+    fig2 = px.line(releases_per_year, x="Year", y="Number of Releases", markers=True)
+    st.plotly_chart(fig2)
+
+    # 🧱 Chart 3: Most Reviewed Games
+    st.subheader("🗣️ Most Reviewed Games")
+    top_reviewed = df.sort_values(by="Reviews", ascending=False).head(10)
+    fig3 = px.bar(top_reviewed, x="Title", y="Reviews", title="Top 10 Most Reviewed Games", color="Reviews", color_continuous_scale="Blues")
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # 🎯 Chart 4: Plays vs Rating Scatter
+    st.subheader("🎯 Plays vs. Rating")
+    fig4 = px.scatter(df, x="Rating", y="Plays", hover_name="Title", color="Rating", size="Plays",
+                      title="Plays vs. Rating", color_continuous_scale="Viridis")
+    st.plotly_chart(fig4, use_container_width=True)
+
+    # 🌡️ Chart 5: Heatmap - Avg Reviews per Year
+    st.subheader("🌡️ Heatmap: Average Reviews by Year")
+    
+    # Convert Release_Date to datetime, if not already done
+    df["Release_Date"] = pd.to_datetime(df["Release_Date"], errors="coerce")
+    
+    # Remove rows with invalid or missing Release_Date
+    df = df.dropna(subset=["Release_Date"])
+    
+    # Extract the Year from Release_Date
+    df["Year"] = df["Release_Date"].dt.year
+    
+    # Check if 'Year' column exists and is populated
+    if "Year" not in df.columns or df["Year"].isna().sum() > 0:
+        st.error("Error: Year column is missing or contains invalid data.")
+        return
+    
+    # Group by Year and calculate average Reviews
+    df_reviews_per_year = df.groupby("Year")["Reviews"].mean().reset_index()
+    
+    # Ensure the data is valid and not empty
+    if df_reviews_per_year.empty:
+        st.error("Error: Could not group data by year.")
+        return
+    
+    # Round the reviews for clearer visualization in the heatmap
+    df_reviews_per_year["Reviews"] = df_reviews_per_year["Reviews"].round(0)
+    
+    # Create the heatmap using plotly
+    fig5 = px.density_heatmap(
+        df_reviews_per_year,
+        x="Year", 
+        y="Reviews", 
+        nbinsx=20, 
+        title="Average Reviews Heatmap by Year",
+        color_continuous_scale="Reds"
+    )
+    
+    st.plotly_chart(fig5, use_container_width=True)
+
+
+    # 🤯 Fun Facts
+    st.subheader("💡 Fun Facts")
+
+    highest_rated = df[df["Rating"] == df["Rating"].max()].iloc[0]
+    most_reviewed = df[df["Reviews"] == df["Reviews"].max()].iloc[0]
+    most_played = df[df["Plays"] == df["Plays"].max()].iloc[0]
+
+    st.markdown(f"""
+    - 🏆 **Highest Rated Game**: `{highest_rated['Title']}` with a rating of **{highest_rated['Rating']}**
+    - 🗣️ **Most Reviewed Game**: `{most_reviewed['Title']}` with **{most_reviewed['Reviews']} reviews**
+    - 🎮 **Most Played Game**: `{most_played['Title']}` with **{most_played['Plays']} plays**
+    """)
+    
 def main():
     st.title("Game Database")
     st.subheader("Make A Wish 💫")
@@ -368,12 +436,23 @@ def main():
     if 'logged_in' not in st.session_state or not st.session_state.logged_in:
         user_account_page()  # Show login/signup page if not logged in
     else:
-        option = st.sidebar.selectbox("Select Page", ("Game Database", "Wishlist"))
+        st.sidebar.markdown(f"👋 Logged in as `{st.session_state.username}`")
         
-        if option == "Game Database":
+        # 🚪 Logout button
+        if st.sidebar.button("🚪 Logout"):
+            st.session_state.clear()
+            st.rerun()
+
+        # Navigation
+        option = st.sidebar.selectbox("Select Page", ("🎮 Game Database", "💫 Wishlist", "📊 Game Data Analysis"))
+        
+        if option == "🎮 Game Database":
             game_database_page()
-        elif option == "Wishlist":
+        elif option == "💫 Wishlist":
             wishlist_page()
+        elif option == "📊 Game Data Analysis":
+            eda_page()
+
 
 if __name__ == "__main__":
     main()
