@@ -334,6 +334,24 @@ def eda_page():
     - 🗣️ **Most Reviewed Game**: `{most_reviewed['Title']}` with **{most_reviewed['Reviews']} reviews**
     - 🎮 **Most Played Game**: `{most_played['Title']}` with **{most_played['Plays']} plays**
     """)
+
+def ensure_indexes():
+    db = connect_to_mongo()
+    games = db["games"]
+    users = db["usersCloud"]
+
+    # Game collection indexes
+    games.create_index([("Title", 1)])
+    games.create_index([("Rating", -1)])
+    games.create_index([("Plays", -1)])
+    games.create_index([("Reviews", -1)])
+    games.create_index([("Release_Date", -1)])
+    games.create_index([("Genres", 1)])
+    games.create_index([("Platforms", 1)])
+
+    # User collection index
+    users.create_index([("username", 1)])
+
     
 def main():
     st.title("Game Database")
@@ -350,7 +368,7 @@ def main():
             st.rerun()
 
         # Navigation
-        option = st.sidebar.selectbox("Select Page", ("🎮 Game Database", "💫 Wishlist", "📊 Game Data Analysis"))
+        option = st.sidebar.selectbox("Select Page", ("🎮 Game Database", "💫 Wishlist", "📊 Game Data Analysis", "🔧 Create Indexes"))
         
         if option == "🎮 Game Database":
             game_database_page()
@@ -358,7 +376,8 @@ def main():
             wishlist_page()
         elif option == "📊 Game Data Analysis":
             eda_page()
-
+        elif "🔧 Create Indexes":
+            ensure_indexes()
 
 if __name__ == "__main__":
     main()
